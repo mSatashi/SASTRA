@@ -69,8 +69,9 @@ python3 -m venv .venv
 ```
 
 Cloud Shell supplies credentials for its signed-in user. A model response from this
-script verifies the **new SDK path**. It has not been run on Cloud Shell by the
-local coding agent. `GET /api/v1/status` distinguishes `clientConfigured` from
+script verifies the **new SDK path**. The script itself was not run on Cloud Shell by the
+local coding agent; the SDK was subsequently verified in the deployed Cloud Run service
+(see [deployment record](CLOUD_RUN_DEPLOYMENT.md)). `GET /api/v1/status` distinguishes `clientConfigured` from
 `lastRequestSucceeded`; constructing a client alone does not verify IAM/quota.
 
 ## Build and Cloud Run
@@ -93,7 +94,8 @@ At deployment, use the existing runtime service account
 `hackathon-runtime@hackathon-primestep-02.iam.gserviceaccount.com`, with the existing
 Agent Platform User (`roles/aiplatform.user`) access, and the environment values
 listed above. Cloud Run obtains ADC from its attached identity. Its IAM/model
-request still needs a live test; no deployment or permission changes were made here.
+request was subsequently verified in Cloud Run. Deployment details and live checks
+are recorded in [CLOUD_RUN_DEPLOYMENT.md](CLOUD_RUN_DEPLOYMENT.md).
 
 The combined image builds React in API mode with same-origin `/api/v1`. Setting a
 Cloud Run runtime VITE variable does not change a previously built frontend.
@@ -122,7 +124,7 @@ verify request shape, image/PDF bytes, approval/version rules, failure handling 
 report provenance; they do **not** prove live Vertex access. Also run frontend
 `npm test`, `npm run format:check` and `npm run build`.
 
-### Local results, 21 October 2026
+### Initial local results, 21 October 2026 (before cloud deployment)
 
 - 17 backend/SDK tests passed (including two concurrent saves of one grade version).
 - 7 frontend domain tests, Prettier and TypeScript/Vite build passed.
