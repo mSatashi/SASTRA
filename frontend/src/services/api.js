@@ -32,6 +32,23 @@ export const api = {
     return res.json();
   },
 
+  async updateLlmConfig(config) {
+    const res = await fetch(`${API_BASE}/data/llm-config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Gagal menyimpan konfigurasi LLM');
+    return data;
+  },
+
+  async listOllamaModels(baseUrl) {
+    const qs = baseUrl ? `?base_url=${encodeURIComponent(baseUrl)}` : '';
+    const res = await fetch(`${API_BASE}/data/ollama/models${qs}`);
+    return res.json();
+  },
+
   // Fitur 1: Interactive Assessment Studio
   async generateAssessment(payload) {
     const res = await fetch(`${API_BASE}/assessment/generate`, {

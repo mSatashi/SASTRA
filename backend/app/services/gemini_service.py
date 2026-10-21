@@ -40,7 +40,11 @@ class GeminiService:
         self.client = None
         return True
 
-    def generate_text(self, prompt: str, system_instruction: Optional[str] = None) -> str:
+    @property
+    def is_ready(self) -> bool:
+        return self.client is not None
+
+    def generate_text(self, prompt: str, system_instruction: Optional[str] = None, json_mode: bool = True) -> str:
         if self.client:
             try:
                 full_prompt = prompt
@@ -52,10 +56,17 @@ class GeminiService:
                 logger.error(f"Error pada Gemini generate_text: {e}")
         return ""
 
-    def analyze_image_and_text(self, image_bytes: bytes, prompt: str, mime_type: str = "image/jpeg") -> str:
+    def analyze_image_and_text(
+        self,
+        image_bytes: bytes,
+        prompt: str,
+        mime_type: str = "image/jpeg",
+        system_instruction: Optional[str] = None,
+    ) -> str:
         if self.client:
             try:
-                import google.generativeai as genai
+                if system_instruction:
+                    prompt = f"System Instruction:\n{system_instruction}\n\nUser Request:\n{prompt}"
                 image_part = {
                     "mime_type": mime_type,
                     "data": image_bytes

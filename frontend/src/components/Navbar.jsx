@@ -47,10 +47,10 @@ export default function Navbar({ activeTab, onOpenApiKeyModal, aiStatus }) {
         }}>
           <span style={{ color: 'var(--text-muted)' }}>Status AI:</span>
           <span style={{ 
-            color: aiStatus?.gemini_active ? '#34d399' : '#fbbf24', 
+            color: aiStatus?.ai_active ? '#34d399' : '#fbbf24', 
             fontWeight: '600' 
           }}>
-            {aiStatus?.gemini_active ? 'Gemini 2.0 Aktif' : 'Engine Standby'}
+            {(aiStatus?.ai_active ? (aiStatus?.provider === 'ollama' ? `Ollama · ${aiStatus?.model_name}` : 'Gemini Live') : 'Engine Standby')}
           </span>
         </div>
 
