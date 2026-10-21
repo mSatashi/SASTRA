@@ -10,9 +10,11 @@ class Settings:
     VERSION: str = "1.0.0"
     API_PREFIX: str = "/api"
     
-    # Gemini API Key
+    # Gemini & GCP Settings
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
     GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+    GCP_PROJECT: str = os.getenv("GCP_PROJECT", os.getenv("GOOGLE_CLOUD_PROJECT", "hackathon-primestep-02"))
+    GCP_LOCATION: str = os.getenv("GCP_LOCATION", "us-central1")
     
     # Storage Paths
     DATA_DIR: Path = BASE_DIR / "data"
