@@ -1,6 +1,18 @@
 # Penyimpanan cloud SASTRA
 
-Cloud Run memakai `SASTRA_STORAGE_BACKEND=cloudsql`. Konfigurasi cloud yang tidak lengkap menghentikan startup; aplikasi tidak berpindah ke SQLite secara diam-diam. SQLite tetap tersedia untuk pengembangan lokal dan tes kontrak.
+Konfigurasi target Cloud Run memakai `SASTRA_STORAGE_BACKEND=cloudsql`. Konfigurasi cloud yang tidak lengkap menghentikan startup; aplikasi tidak berpindah ke SQLite secara diam-diam. SQLite tetap tersedia untuk pengembangan lokal dan tes kontrak.
+
+## Prasyarat IAM runtime
+
+Service account `hackathon-runtime@hackathon-primestep-02.iam.gserviceaccount.com` memerlukan `roles/cloudsql.client`, akses objek bucket, serta Secret Manager Secret Accessor untuk secret password. Role pada akun manusia tidak diwariskan ke Cloud Run.
+
+Owner atau administrator IAM proyek perlu menjalankan:
+
+```sh
+gcloud projects add-iam-policy-binding hackathon-primestep-02 --member="serviceAccount:hackathon-runtime@hackathon-primestep-02.iam.gserviceaccount.com" --role="roles/cloudsql.client"
+```
+
+Jika akun pelaksana tidak memiliki `resourcemanager.projects.setIamPolicy`, pembuatan database tetap dapat berhasil sedangkan pengaktifan backend terhenti pada 403 `cloudsql.instances.get`. Jangan mengalihkan trafik sebelum role runtime tersedia dan pemeriksaan revisi berhasil.
 
 ## Konfigurasi
 
