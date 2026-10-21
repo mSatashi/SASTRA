@@ -1,0 +1,31 @@
+# Node & Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+frontend/.env.*.local
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# Python & Backend
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*/**/__pycache__/
+backend/.pytest_cache/
+backend/*.pyc
+backend/.env
+backend/.venv/
+backend/env/
+backend/venv/
+
+# Uploads & Temporary files
+backend/data/uploads/*
+!backend/data/uploads/.gitkeep
+backend/data/sastra.json
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
