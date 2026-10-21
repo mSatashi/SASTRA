@@ -65,8 +65,8 @@ graph TD
         MasterAgent --> VisionAgent[Vision OCR & Grading Agent]
         MasterAgent --> ReportAgent[Academic Tracker & Report Agent]
         
-        ContentAgent -.-> GenAI1[Gemini 2.0 / 1.5 Pro]
-        VisionAgent -.-> GenAI2[Gemini Multimodal Vision]
+        ContentAgent -.-> GenAI1[Gemini / Ollama]
+        VisionAgent -.-> GenAI2[Gemini Vision / Ollama Vision]
         ReportAgent -.-> AnalyticsEngine[Analytics & Template Engine]
     end
 ```
@@ -83,5 +83,5 @@ graph TD
 ## 🛠️ Rencana Teknologi (Tech Stack)
 * **Frontend:** React + Vite, Tailwind CSS / Vanilla CSS modern, Lucide Icons, Chart.js / Recharts.
 * **Backend:** Python FastAPI (asynchronous, performa tinggi, native AI tooling).
-* **AI Model:** Google Gemini 2.0 Flash / Gemini 1.5 Pro (Multimodal Vision API & Context Caching).
+* **AI Model:** Google Gemini 2.0 Flash / Gemini 1.5 Pro (cloud) **atau** model lokal via Ollama (mis. gemma3, qwen2.5vl), dipilih lewat `LLM_PROVIDER` melalui lapisan `services/llm_service.py`.
 * **Database & Dokumen:** SQLite / PostgreSQL lokal, PDFKit / python-docx / openpyxl untuk ekspor laporan.

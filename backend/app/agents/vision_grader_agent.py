@@ -4,12 +4,12 @@ import re
 import os
 from typing import Dict, Any, List, Optional
 from ..models.schemas import VisionGradingResponse, QuestionGradeResult
-from ..services.gemini_service import gemini_service
+from ..services.llm_service import llm_service
 from ..services.storage_service import storage_service
 
 class VisionGraderAgent:
     """Agent untuk mengevaluasi lembar jawaban siswa (Pilihan Ganda & Esai Tulisan Tangan)
-    menggunakan Gemini Vision OCR dan rubrik penalaran mendalam."""
+    menggunakan Vision OCR (Gemini / Ollama) dan rubrik penalaran mendalam."""
 
     SYSTEM_PROMPT = """Anda adalah Staf Asisten Guru Spesialis Koreksi & Asesmen Multi-Modal (Vision OCR).
 Tugas Anda adalah membaca dan mengevaluasi lembar jawaban siswa dari gambar/foto tulisan tangan atau ketikan.
@@ -77,8 +77,10 @@ Kunci Jawaban & Rubrik: {json.dumps(custom_answer_key or self._get_default_answe
 Baca tulisan tangan atau jawaban yang ada di gambar secara akurat, hitung skor tiap nomor, dan berikan evaluasi mendalam.
 """
         result_json = None
-        if gemini_service.client and len(image_bytes) > 0:
-            raw_response = gemini_service.analyze_image_and_text(image_bytes, prompt, mime_type=mime_type)
+        if llm_service.is_ready and len(image_bytes) > 0:
+            raw_response = llm_service.analyze_image_and_text(
+                image_bytes, prompt, mime_type=mime_type, system_instruction=self.SYSTEM_PROMPT
+            )
             if raw_response:
                 try:
                     cleaned = re.sub(r"```json\s*", "", raw_response)
