@@ -5,8 +5,26 @@ from ..models.workspace import ContentInput, ExternalContentInput, FinalizeInput
 from ..services.workspace_service import workspace_service
 from ..services.gemini_service import gemini_service
 from ..services.llm_service import llm_service
+from ..services.presentation_service import PresentationInput, PresentationService
 
 router = APIRouter(prefix="/api/v1", tags=["Teacher Workspace"])
+
+
+@router.get("/assessment-versions/{content_id}/presentations")
+def list_presentations(content_id: str):
+    return PresentationService(workspace_service).list_for(content_id)
+
+
+@router.post("/assessment-versions/{content_id}/presentations")
+def generate_presentation(content_id: str, req: PresentationInput):
+    return PresentationService(workspace_service).generate(content_id, req)
+
+
+@router.get("/presentations/{presentation_id}/file")
+def download_presentation(presentation_id: str):
+    data = PresentationService(workspace_service).download(presentation_id)
+    return Response(data, media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                    headers={"Content-Disposition": 'attachment; filename="SASTRA-materi.pptx"', "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
 
 
 @router.get("/dashboard")

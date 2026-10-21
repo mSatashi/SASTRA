@@ -40,6 +40,9 @@ class Settings:
     DB_PATH: Path = BASE_DIR / "data" / "sastra.json"
     WORKSPACE_DB: Path = Path(os.getenv("SASTRA_WORKSPACE_DB", str(DATA_DIR / "workspace.sqlite3")))
     STORAGE_BACKEND: str = os.getenv("SASTRA_STORAGE_BACKEND", "sqlite")
+    SQLITE_SEED_URI: str = os.getenv("SASTRA_SQLITE_SEED_URI", "")
+    SQLITE_SEED_GENERATION: str = os.getenv("SASTRA_SQLITE_SEED_GENERATION", "")
+    SQLITE_SEED_SHA256: str = os.getenv("SASTRA_SQLITE_SEED_SHA256", "")
     SQL_INSTANCE: str = os.getenv("GCP_SQL_INSTANCE", "")
     SQL_DATABASE: str = os.getenv("GCP_SQL_DATABASE", "sastra")
     SQL_USER: str = os.getenv("GCP_SQL_USER", "sastra_app")

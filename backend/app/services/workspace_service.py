@@ -87,6 +87,7 @@ def seed_workspace():
 class WorkspaceService:
     def __init__(self, path=None, provider=None, store=None):
         self.path = Path(path or settings.WORKSPACE_DB)
+        self.seed_uri = settings.SQLITE_SEED_URI if path is None else ""
         self.provider = provider or llm_service
         self.store = store
         if path is None and store is None:
@@ -100,6 +101,10 @@ class WorkspaceService:
                 raise ValueError("Unknown workspace storage backend")
 
     def _connect(self):
+        if self.seed_uri and not self.path.exists():
+            from .sqlite_seed import restore_seed
+            restore_seed(self.path, self.seed_uri, settings.SQLITE_SEED_GENERATION,
+                         settings.SQLITE_SEED_SHA256, settings.GCP_PROJECT)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         db = sqlite3.connect(self.path, timeout=15)
         db.execute("CREATE TABLE IF NOT EXISTS workspace (id INTEGER PRIMARY KEY CHECK(id=1), data TEXT NOT NULL)")

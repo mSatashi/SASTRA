@@ -21,6 +21,10 @@ async def lifespan(app):
     try:
         if store:
             await run_in_threadpool(store._initialize)
+        elif settings.SQLITE_SEED_URI:
+            def initialize_sqlite():
+                workspace_service._connect().close()
+            await run_in_threadpool(initialize_sqlite)
         yield
     finally:
         if store:

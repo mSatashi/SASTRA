@@ -17,7 +17,24 @@ const apiBase = (import.meta.env.VITE_API_URL ?? "/api/v1").replace(/\/$/, "");
 export const assetUrl = (id: string) =>
   `${apiBase}/submissions/${encodeURIComponent(id)}/asset`;
 const pause = () => new Promise<void>((r) => setTimeout(r, 550));
+export type PresentationDraft = {
+  id: string;
+  contentId: string;
+  sourceVersion: number;
+  title: string;
+  slideCount: number;
+  createdAt: string;
+  status: "DRAFT";
+  slides: { title: string; bullets: string[]; notes: string }[];
+};
 export interface SastraClient {
+  listPresentations(contentId: string): Promise<PresentationDraft[]>;
+  generatePresentation(
+    contentId: string,
+    version: number,
+    count: number,
+  ): Promise<PresentationDraft>;
+  downloadPresentation(id: string): Promise<Blob>;
   load(): Promise<Workspace>;
   approveGrade(
     id: string,
@@ -37,6 +54,15 @@ export interface SastraClient {
   ): Promise<Workspace>;
 }
 class DemoClient implements SastraClient {
+  async listPresentations(): Promise<PresentationDraft[]> {
+    return [];
+  }
+  async generatePresentation(): Promise<PresentationDraft> {
+    throw new Error("Hubungkan backend untuk membuat file PowerPoint.");
+  }
+  async downloadPresentation(): Promise<Blob> {
+    throw new Error("Hubungkan backend untuk mengunduh PowerPoint.");
+  }
   private read(): Workspace {
     const saved = localStorage.getItem(key);
     if (!saved) return makeFixture();
@@ -153,6 +179,33 @@ class DemoClient implements SastraClient {
   }
 }
 class BackendClient implements SastraClient {
+  async listPresentations(contentId: string): Promise<PresentationDraft[]> {
+    return (
+      await this.request(
+        `/assessment-versions/${encodeURIComponent(contentId)}/presentations`,
+      )
+    ).json();
+  }
+  async generatePresentation(
+    contentId: string,
+    expectedVersion: number,
+    slideCount: number,
+  ): Promise<PresentationDraft> {
+    return (
+      await this.request(
+        `/assessment-versions/${encodeURIComponent(contentId)}/presentations`,
+        {
+          method: "POST",
+          body: JSON.stringify({ expectedVersion, slideCount }),
+        },
+      )
+    ).json();
+  }
+  async downloadPresentation(id: string): Promise<Blob> {
+    return (
+      await this.request(`/presentations/${encodeURIComponent(id)}/file`)
+    ).blob();
+  }
   private base = apiBase;
   private async request(path: string, init?: RequestInit) {
     const r = await fetch(`${this.base}${path}`, {

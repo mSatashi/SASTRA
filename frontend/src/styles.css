@@ -3688,3 +3688,26 @@ td .badge {
   font-weight: 600;
   padding: 0 6px;
 }
+
+.presentation-panel {
+  border-top: 1px solid #dce4dc;
+  padding: 24px 0;
+  margin-top: 20px;
+}
+.presentation-panel h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ppt-draft {
+  margin-top: 20px;
+  border-top: 1px solid #dce4dc;
+  padding-top: 12px;
+}
+.ppt-draft summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.ppt-draft li {
+  margin: 8px 0;
+}

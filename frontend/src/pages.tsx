@@ -51,6 +51,7 @@ import {
   ExternalQuestions,
   emptyQuestion,
 } from "./AssessmentFields";
+import { PresentationPanel } from "./PresentationPanel";
 export function ContentPage() {
   const { data: w, busy, run } = useWorkspace();
   const [topic, setTopic] = useState(""),
@@ -323,6 +324,10 @@ export function ContentPage() {
                   </p>
                 </div>
               </div>
+              <PresentationPanel
+                key={`${content.id}:${content.version}`}
+                content={content}
+              />
               <div className="button-row">
                 <DownloadButton
                   text={`${content.title}\n\n${content.objective}\n\n${content.module}\n\n${content.questions.join("\n")}\n\n${content.rubric || ""}`}
