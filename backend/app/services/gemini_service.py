@@ -76,7 +76,11 @@ class GeminiService:
         self._initialize_client()
         return True
 
-    def generate_text(self, prompt: str, system_instruction: Optional[str] = None) -> str:
+    @property
+    def is_ready(self) -> bool:
+        return self.client is not None
+
+    def generate_text(self, prompt: str, system_instruction: Optional[str] = None, json_mode: bool = True) -> str:
         if self.client:
             try:
                 full_prompt = prompt
@@ -89,9 +93,16 @@ class GeminiService:
                 logger.error(f"Error pada Gemini generate_text ({self.mode}): {e}")
         return ""
 
-    def analyze_image_and_text(self, image_bytes: bytes, prompt: str, mime_type: str = "image/jpeg") -> str:
+    def analyze_image_and_text(
+        self,
+        image_bytes: bytes,
+        prompt: str,
+        mime_type: str = "image/jpeg",
+        system_instruction: Optional[str] = None,
+    ) -> str:
         if self.client:
             try:
+<<<<<<< HEAD
                 if self.mode == "vertex":
                     from vertexai.generative_models import Part
                     image_part = Part.from_data(data=image_bytes, mime_type=mime_type)
@@ -104,6 +115,16 @@ class GeminiService:
                     }
                     response = self.client.generate_content([prompt, image_part])
                     return response.text
+=======
+                if system_instruction:
+                    prompt = f"System Instruction:\n{system_instruction}\n\nUser Request:\n{prompt}"
+                image_part = {
+                    "mime_type": mime_type,
+                    "data": image_bytes
+                }
+                response = self.client.generate_content([prompt, image_part])
+                return response.text
+>>>>>>> 41e4345f04bd5d76398125bf8cebc2b9897709ce
             except Exception as e:
                 logger.error(f"Error pada Gemini Vision analyze ({self.mode}): {e}")
         return ""

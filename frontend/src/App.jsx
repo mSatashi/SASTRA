@@ -15,7 +15,7 @@ export default function App() {
   
   const [summary, setSummary] = useState(null);
   const [students, setStudents] = useState([]);
-  const [aiStatus, setAiStatus] = useState({ gemini_active: false });
+  const [aiStatus, setAiStatus] = useState({ ai_active: false, gemini_active: false });
   const [preselectedStudentId, setPreselectedStudentId] = useState(null);
 
   const loadData = async () => {
@@ -23,7 +23,7 @@ export default function App() {
       const [sumData, stdData, stStatus] = await Promise.all([
         api.getSummary().catch(() => null),
         api.getStudents().catch(() => []),
-        api.getAiStatus().catch(() => ({ gemini_active: false }))
+        api.getAiStatus().catch(() => ({ ai_active: false, gemini_active: false }))
       ]);
       if (sumData) setSummary(sumData);
       if (stdData) setStudents(stdData);

@@ -1,32 +1,119 @@
-import React, { useState } from 'react';
-import { X, Key, CheckCircle, AlertCircle, Sparkles } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { X, Key, CheckCircle, AlertCircle, Sparkles, Server, Cloud, RefreshCw } from 'lucide-react';
 import { api } from '../services/api';
 
+const DEFAULT_OLLAMA_URL = 'http://localhost:11434';
+
+const tabStyle = (active) => ({
+  flex: 1,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: '6px',
+  padding: '8px 10px',
+  borderRadius: 'var(--radius-sm)',
+  border: `1px solid ${active ? 'rgba(99, 102, 241, 0.5)' : 'var(--border-color)'}`,
+  background: active ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+  color: active ? 'var(--text-primary, #fff)' : 'var(--text-muted)',
+  fontSize: '0.82rem',
+  fontWeight: 600,
+  cursor: 'pointer',
+});
+
 export default function ApiKeyModal({ isOpen, onClose, onKeyUpdated, aiStatus }) {
+  const [provider, setProvider] = useState('gemini');
   const [apiKey, setApiKey] = useState('');
+
+  const [ollamaUrl, setOllamaUrl] = useState(DEFAULT_OLLAMA_URL);
+  const [ollamaModel, setOllamaModel] = useState('');
+  const [ollamaVisionModel, setOllamaVisionModel] = useState('');
+  const [ollamaModels, setOllamaModels] = useState([]);
+  const [ollamaReachable, setOllamaReachable] = useState(null);
+  const [checking, setChecking] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState(null);
 
+  // Sinkronkan form dengan status backend setiap kali modal dibuka
+  useEffect(() => {
+    if (!isOpen) return;
+    setMsg(null);
+    setProvider(aiStatus?.provider || 'gemini');
+    const o = aiStatus?.ollama || {};
+    setOllamaUrl(o.base_url || DEFAULT_OLLAMA_URL);
+    setOllamaModel(o.model_name || '');
+    setOllamaVisionModel(o.vision_model_name && o.vision_model_name !== o.model_name ? o.vision_model_name : '');
+  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (isOpen && provider === 'ollama') refreshOllamaModels();
+  }, [isOpen, provider]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!isOpen) return null;
+
+  async function refreshOllamaModels() {
+    setChecking(true);
+    try {
+      const res = await api.listOllamaModels(ollamaUrl);
+      setOllamaReachable(res.reachable);
+      setOllamaModels(res.models || []);
+      if (!res.reachable) {
+        setMsg({ type: 'error', text: `Server Ollama tidak dapat dihubungi di ${ollamaUrl}. Pastikan "ollama serve" berjalan.` });
+      } else {
+        setMsg(null);
+        if (!ollamaModel && res.models?.length) setOllamaModel(res.models[0]);
+      }
+    } catch (err) {
+      setOllamaReachable(false);
+      setMsg({ type: 'error', text: 'Gagal memeriksa server Ollama: ' + err.message });
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  const finish = (text) => {
+    setMsg({ type: 'success', text });
+    if (onKeyUpdated) onKeyUpdated();
+    setTimeout(() => {
+      onClose();
+      setMsg(null);
+    }, 1200);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMsg(null);
     try {
-      const res = await api.updateApiKey(apiKey);
-      setMsg({ type: 'success', text: 'Gemini API Key berhasil disimpan & diaktifkan!' });
-      if (onKeyUpdated) onKeyUpdated();
-      setTimeout(() => {
-        onClose();
-        setMsg(null);
-      }, 1200);
+      if (provider === 'gemini') {
+        if (apiKey.trim()) await api.updateApiKey(apiKey);
+        const res = await api.updateLlmConfig({ provider: 'gemini' });
+        if (res.ai_active) finish('Gemini aktif sebagai model AI.');
+        else setMsg({ type: 'error', text: 'Gemini belum aktif. Masukkan API Key yang valid.' });
+      } else {
+        const res = await api.updateLlmConfig({
+          provider: 'ollama',
+          ollama_base_url: ollamaUrl,
+          ollama_model: ollamaModel,
+          ollama_vision_model: ollamaVisionModel,
+        });
+        if (res.ai_active) {
+          finish(`Ollama aktif dengan model ${res.model_name}.`);
+        } else {
+          setMsg({ type: 'error', text: res.ollama?.error || 'Ollama belum siap. Periksa server dan model.' });
+          if (onKeyUpdated) onKeyUpdated();
+        }
+      }
     } catch (err) {
-      setMsg({ type: 'error', text: 'Gagal memperbarui API Key: ' + err.message });
+      setMsg({ type: 'error', text: 'Gagal menyimpan konfigurasi: ' + err.message });
     } finally {
       setLoading(false);
     }
   };
+
+  const modelOptions = ollamaModels.includes(ollamaModel) || !ollamaModel
+    ? ollamaModels
+    : [ollamaModel, ...ollamaModels];
 
   return (
     <div style={{
@@ -44,10 +131,12 @@ export default function ApiKeyModal({ isOpen, onClose, onKeyUpdated, aiStatus })
       padding: '20px'
     }}>
       <div className="glass-panel" style={{
-        maxWidth: '500px',
+        maxWidth: '520px',
         width: '100%',
         padding: '28px',
-        position: 'relative'
+        position: 'relative',
+        maxHeight: '90vh',
+        overflowY: 'auto'
       }}>
         <button
           onClick={onClose}
@@ -75,32 +164,103 @@ export default function ApiKeyModal({ isOpen, onClose, onKeyUpdated, aiStatus })
             justifyContent: 'center',
             color: 'var(--accent-primary)'
           }}>
-            <Key size={20} />
+            {provider === 'ollama' ? <Server size={20} /> : <Key size={20} />}
           </div>
           <div>
-            <h3 style={{ fontSize: '1.15rem' }}>Konfigurasi Google Gemini API</h3>
+            <h3 style={{ fontSize: '1.15rem' }}>Pengaturan Model AI</h3>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              Model: Gemini 2.0 Flash / Gemini 1.5 Pro
+              Aktif sekarang: {aiStatus?.ai_active
+                ? `${aiStatus.provider === 'ollama' ? 'Ollama' : 'Gemini'} · ${aiStatus.model_name}`
+                : 'Mode Demo'}
             </p>
           </div>
         </div>
 
-        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '18px' }}>
-          Masukkan <strong>Google Gemini API Key</strong> Anda untuk menjalankan inferensi live multi-modal vision OCR lembar jawaban dan pembuatan modul ajar.
-        </p>
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '18px' }}>
+          <button type="button" style={tabStyle(provider === 'gemini')} onClick={() => { setProvider('gemini'); setMsg(null); }}>
+            <Cloud size={14} /> Google Gemini
+          </button>
+          <button type="button" style={tabStyle(provider === 'ollama')} onClick={() => { setProvider('ollama'); setMsg(null); }}>
+            <Server size={14} /> Ollama (Lokal)
+          </button>
+        </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label">Gemini API Key</label>
-            <input
-              type="password"
-              className="form-input"
-              placeholder="AIzaSy..."
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              required
-            />
-          </div>
+          {provider === 'gemini' ? (
+            <>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '18px' }}>
+                Masukkan <strong>Google Gemini API Key</strong> untuk inferensi cloud multi-modal (vision OCR lembar jawaban dan pembuatan modul ajar).
+              </p>
+              <div className="form-group">
+                <label className="form-label">Gemini API Key</label>
+                <input
+                  type="password"
+                  className="form-input"
+                  placeholder={aiStatus?.gemini_active ? 'Kosongkan untuk memakai key yang tersimpan' : 'AIzaSy...'}
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  required={!aiStatus?.gemini_active}
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '18px' }}>
+                Jalankan model secara <strong>lokal</strong> lewat Ollama — data siswa tidak keluar dari komputer sekolah. Pastikan <code>ollama serve</code> sudah berjalan.
+              </p>
+
+              <div className="form-group">
+                <label className="form-label">URL Server Ollama</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder={DEFAULT_OLLAMA_URL}
+                    value={ollamaUrl}
+                    onChange={(e) => setOllamaUrl(e.target.value)}
+                    required
+                  />
+                  <button type="button" className="btn-secondary" onClick={refreshOllamaModels} disabled={checking} title="Cek koneksi & muat daftar model">
+                    <RefreshCw size={14} className={checking ? 'spin' : ''} />
+                  </button>
+                </div>
+                {ollamaReachable !== null && (
+                  <span style={{ fontSize: '0.75rem', color: ollamaReachable ? '#34d399' : '#fb7185' }}>
+                    {ollamaReachable ? `Terhubung · ${ollamaModels.length} model terpasang` : 'Tidak terhubung'}
+                  </span>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Model Teks (Modul, Kuis, Rapor)</label>
+                {modelOptions.length > 0 ? (
+                  <select className="form-input" value={ollamaModel} onChange={(e) => setOllamaModel(e.target.value)} required>
+                    {modelOptions.map((m) => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="gemma3:4b"
+                    value={ollamaModel}
+                    onChange={(e) => setOllamaModel(e.target.value)}
+                    required
+                  />
+                )}
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Model Vision (Koreksi Lembar Jawaban)</label>
+                <select className="form-input" value={ollamaVisionModel} onChange={(e) => setOllamaVisionModel(e.target.value)}>
+                  <option value="">Sama dengan model teks</option>
+                  {ollamaModels.filter((m) => m !== ollamaModel).map((m) => <option key={m} value={m}>{m}</option>)}
+                </select>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Harus model multimodal, mis. gemma3, qwen2.5vl, llava, llama3.2-vision.
+                </span>
+              </div>
+            </>
+          )}
 
           {msg && (
             <div style={{
@@ -133,7 +293,7 @@ export default function ApiKeyModal({ isOpen, onClose, onKeyUpdated, aiStatus })
               <Sparkles size={14} />
               <span>Mode Demo Standby Tersedia</span>
             </div>
-            Bila tanpa API key, SASTRA otomatis menjalankan simulator cerdas berstandar Permendikdasmen No. 13/2025 agar seluruh alur pengujian juri dapat didemokan tanpa hambatan.
+            Bila model AI belum siap, SASTRA otomatis menjalankan simulator cerdas berstandar Permendikdasmen No. 13/2025 agar seluruh alur pengujian juri dapat didemokan tanpa hambatan.
           </div>
 
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
@@ -141,7 +301,7 @@ export default function ApiKeyModal({ isOpen, onClose, onKeyUpdated, aiStatus })
               Batal
             </button>
             <button type="submit" className="btn-primary" disabled={loading}>
-              {loading ? 'Menyimpan...' : 'Simpan & Hubungkan'}
+              {loading ? 'Menyimpan...' : provider === 'ollama' ? 'Gunakan Ollama' : 'Simpan & Hubungkan'}
             </button>
           </div>
         </form>

@@ -46,6 +46,41 @@ npm run dev
 
 ---
 
-## 🔑 Mode Inferensi AI & Google Gemini Key
-* **Mode Live:** Masukkan Google Gemini API Key Anda melalui tombol *"Atur Gemini Key"* di sidebar aplikasi atau simpan di file `.env`.
-* **Mode Demo Standby:** Tanpa API Key sekalipun, SASTRA dilengkapi simulator cerdas bawaan berstandar Permendikdasmen No. 13/2025 agar seluruh alur kerja juri dapat diuji coba secara instan dan mulus.
+## 🔑 Mode Inferensi AI: Google Gemini atau Ollama (Lokal)
+SASTRA mendukung dua penyedia model yang dapat dipilih lewat `.env` maupun tombol **"Pengaturan Model AI"** di sidebar:
+
+| Provider | Kapan dipakai | Konfigurasi |
+| :--- | :--- | :--- |
+| **Google Gemini** (cloud) | Kualitas tertinggi, butuh internet & API key | `GEMINI_API_KEY`, `GEMINI_MODEL` |
+| **Ollama** (lokal) | Data siswa tidak keluar dari komputer sekolah, bisa offline | `OLLAMA_BASE_URL`, `OLLAMA_MODEL`, `OLLAMA_VISION_MODEL` |
+
+* **Mode Demo Standby:** Bila provider aktif belum siap (tanpa API key / server Ollama mati / model belum di-pull), SASTRA otomatis memakai simulator cerdas bawaan berstandar Permendikdasmen No. 13/2025.
+
+### Menyiapkan Ollama
+1. Pasang Ollama dari https://ollama.com/download, lalu pastikan server berjalan (`ollama serve`; di Windows/macOS biasanya otomatis jalan di tray).
+2. Unduh model. Satu model multimodal sudah cukup untuk semua fitur:
+   ```bash
+   ollama pull gemma3:4b
+   ```
+   Opsional, model vision terpisah yang lebih kuat untuk membaca tulisan tangan: `ollama pull qwen2.5vl:7b`.
+3. Salin `backend/.env.example` menjadi `backend/.env` dan atur:
+   ```env
+   LLM_PROVIDER=ollama
+   OLLAMA_BASE_URL=http://localhost:11434
+   OLLAMA_MODEL=gemma3:4b
+   OLLAMA_VISION_MODEL=        # kosong = sama dengan OLLAMA_MODEL
+   OLLAMA_NUM_CTX=8192
+   OLLAMA_TIMEOUT=300
+   ```
+4. Jalankan backend seperti biasa. Provider juga bisa diganti saat runtime dari UI tanpa restart (pengaturan dari UI tidak disimpan ke `.env`).
+
+**Catatan Ollama:**
+* Vision Grader membutuhkan model multimodal (gemma3, qwen2.5vl, llava, llama3.2-vision) dan hanya menerima **gambar** (JPG/PNG). Upload PDF akan memakai mode fallback saat provider Ollama aktif.
+* Respons diminta dalam mode JSON (`format: "json"`), dan blok `<think>` dari model reasoning (qwen3, deepseek-r1) dibersihkan otomatis.
+* Di CPU tanpa GPU, satu permintaan modul ajar bisa memakan waktu beberapa menit; naikkan `OLLAMA_TIMEOUT` bila perlu.
+
+### Endpoint terkait
+* `GET  /api/data/status` — provider aktif, model, dan kesiapan Gemini/Ollama.
+* `POST /api/data/llm-config` — ganti provider & konfigurasi Ollama: `{"provider": "ollama", "ollama_base_url": "...", "ollama_model": "gemma3:4b", "ollama_vision_model": ""}`.
+* `GET  /api/data/ollama/models` — daftar model yang sudah di-pull di server Ollama.
+* `POST /api/data/update-key` — memperbarui Gemini API key.

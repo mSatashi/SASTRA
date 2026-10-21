@@ -3,7 +3,7 @@ import uuid
 import re
 from typing import Dict, Any, List
 from ..models.schemas import AssessmentGenerateRequest, AssessmentPackageResponse, QuestionItem, LearningActivity
-from ..services.gemini_service import gemini_service
+from ..services.llm_service import llm_service
 from ..services.storage_service import storage_service
 
 class AssessmentAgent:
@@ -85,8 +85,8 @@ Keluarkan respon HANYA dalam JSON format murni tanpa markdown triple-backtick de
 }}
 """
         generated_json = None
-        if gemini_service.client:
-            raw_response = gemini_service.generate_text(prompt, system_instruction=self.SYSTEM_PROMPT)
+        if llm_service.is_ready:
+            raw_response = llm_service.generate_text(prompt, system_instruction=self.SYSTEM_PROMPT)
             if raw_response:
                 try:
                     cleaned = re.sub(r"```json\s*", "", raw_response)

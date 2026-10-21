@@ -125,11 +125,11 @@ export default function Sidebar({ activeTab, setActiveTab, onOpenApiKeyModal, ai
               width: '8px',
               height: '8px',
               borderRadius: '50%',
-              backgroundColor: aiStatus?.gemini_active ? '#10b981' : '#f59e0b',
-              boxShadow: aiStatus?.gemini_active ? '0 0 10px #10b981' : '0 0 10px #f59e0b'
+              backgroundColor: aiStatus?.ai_active ? '#10b981' : '#f59e0b',
+              boxShadow: aiStatus?.ai_active ? '0 0 10px #10b981' : '0 0 10px #f59e0b'
             }} className="agent-indicator-pulse" />
             <span style={{ fontSize: '0.78rem', fontWeight: '600' }}>
-              {aiStatus?.gemini_active ? 'Gemini 2.0 Live' : 'Demo Engine Aktif'}
+              {(aiStatus?.ai_active ? (aiStatus?.provider === 'ollama' ? `Ollama · ${aiStatus?.model_name}` : 'Gemini Live') : 'Demo Engine Aktif')}
             </span>
           </div>
           <Cpu size={14} color="var(--text-muted)" />
@@ -141,7 +141,7 @@ export default function Sidebar({ activeTab, setActiveTab, onOpenApiKeyModal, ai
           style={{ width: '100%', fontSize: '0.75rem', padding: '6px 10px' }}
         >
           <Key size={13} />
-          <span>{aiStatus?.gemini_active ? 'Ganti API Key' : 'Atur Gemini Key'}</span>
+          <span>Pengaturan Model AI</span>
         </button>
       </div>
     </aside>
