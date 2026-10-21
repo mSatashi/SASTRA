@@ -1,0 +1,19 @@
+# Dependency and build output are recreated inside the image.
+node_modules
+dist
+coverage
+test-results
+playwright-report
+.git
+.npmrc
+.yarnrc*
+.vscode
+.idea
+.env
+.env.*
+*.log
+*.tsbuildinfo
+**/*.pem
+**/*.key
+**/*credentials*.json
+**/*service-account*.json

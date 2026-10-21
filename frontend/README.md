@@ -69,6 +69,12 @@ npm run format:check
 
 Tes domain mencakup pengecualian skor usulan, batas skor/identitas, konflik versi, perlindungan bukti/rubrik, riwayat revisi, invalidasi draf, snapshot laporan final dan kebutuhan bukti untuk tren. Pengujian browser dicatat di ../docs/FRONTEND_QA.md.
 
+## Container dan Cloud Build
+
+Dari root repository, jalankan `docker build -t sastra-frontend:local ./frontend`, lalu `docker run --rm -p 127.0.0.1:8080:8080 -e PORT=8080 sastra-frontend:local`. Runtime Nginx mendukung refresh route React dan endpoint `/healthz`. Build image otomatis menjalankan format check, tes, dan build produksi.
+
+Konfigurasi root `cloudbuild.yaml` membangun dan memublikasikan image ke Artifact Registry; deployment Cloud Run merupakan langkah terpisah. Panduan Cloud Shell dan prasyarat ada di [../docs/FRONTEND_CLOUD_BUILD.md](../docs/FRONTEND_CLOUD_BUILD.md). Mode demo dan URL backend merupakan build arguments Vite; perubahan memerlukan build image baru.
+
 ## Batas versi awal
 
 Belum ada login/register, pilihan sekolah/kelas, OCR atau model AI nyata, analisis capaian per tujuan pembelajaran, kuis PG interaktif, ekspor PDF/Word/Excel, editor materi lengkap, persistensi multi-pengguna, maupun deploy cloud. Unduhan saat ini CSV dan teks (.txt). Review file visual berdampingan dan verifikasi citasi OCR perlu diintegrasikan dengan API asset backend.

@@ -21,3 +21,11 @@ Screenshot preview tersimpan lokal di docs/qa (diabaikan Git). Screenshot full-p
 ## Review kode frontend
 
 Komponen halaman terpisah dari service/domain; route non-dashboard dimuat lazy. Hook tidak bersyarat; object URL dihapus setelah tidak digunakan; effect pembacaan data mengabaikan hasil setelah unmount; daftar memakai ID stabil; data localStorage berversi. Tidak ada API key atau credential cloud di bundle. Pemeriksaan otorisasi/skor/versi tetap wajib diulang secara otoritatif oleh backend produksi.
+
+## Container dan konfigurasi Cloud Build
+
+- `docker build --platform linux/amd64 -t sastra-frontend:local ./frontend` berhasil. Format check, 7 tes domain dan build produksi berjalan di Linux dalam build stage.
+- Runtime Nginx berhasil dijalankan dengan PORT=8080 dan PORT=9090. Kedua konfigurasi lulus `healthz`, enam halaman SPA, refresh route, JSON 404 untuk `/api/v1/dashboard`, 404 aset tidak ditemukan, cache immutable aset dan no-store untuk HTML. `nginx -t` berhasil.
+- cloudbuild.yaml berhasil diparse; nama field tingkat atas diperiksa terhadap discovery schema API Cloud Build. Substitusi project, repository, region, BUILD_ID dan service account menghasilkan nilai yang diharapkan. Ini belum merupakan validasi server Cloud Build dengan kredensial proyek.
+- 18 kasus aturan upload .gcloudignore diuji dengan matcher Git: sumber frontend/config termasuk; node_modules, dist, env, npmrc, credential contoh, backend, dokumen dan metadata Git tidak termasuk.
+- Cloud Build di proyek Google Cloud belum disubmit. Billing/kredit, API aktif, repository Artifact Registry dan izin efektif service account belum diuji langsung. gcloud tidak tersedia di mesin lokal; panduan Cloud Shell ada di FRONTEND_CLOUD_BUILD.md.

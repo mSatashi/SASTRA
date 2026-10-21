@@ -1,0 +1,28 @@
+# Submit from the repository root. This pipeline builds and publishes only.
+# Cloud Run deployment is a separate step after the image has been verified.
+steps:
+  - id: build-frontend
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --platform=linux/amd64
+      - --file=frontend/Dockerfile
+      - --build-arg=VITE_DATA_MODE=${_VITE_DATA_MODE}
+      - --build-arg=VITE_API_URL=${_VITE_API_URL}
+      - --tag=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/sastra-frontend:${BUILD_ID}
+      - frontend
+
+images:
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/sastra-frontend:${BUILD_ID}
+
+substitutions:
+  _REGION: asia-southeast2
+  _REPOSITORY: sastra
+  _VITE_DATA_MODE: demo
+  _VITE_API_URL: /api/v1
+
+# Existing hackathon build identity; no downloaded service-account key needed.
+serviceAccount: projects/${PROJECT_ID}/serviceAccounts/hackathon-runtime@${PROJECT_ID}.iam.gserviceaccount.com
+options:
+  logging: CLOUD_LOGGING_ONLY
+timeout: 900s
