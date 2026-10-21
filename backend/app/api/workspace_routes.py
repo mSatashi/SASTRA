@@ -1,7 +1,7 @@
 from fastapi import APIRouter, File, Form, UploadFile
 from fastapi.responses import Response
 
-from ..models.workspace import ContentInput, FinalizeInput, GradeInput, ReportInput, VersionInput
+from ..models.workspace import ContentInput, ExternalContentInput, FinalizeInput, GradeInput, ReportInput, VersionInput
 from ..services.workspace_service import workspace_service
 from ..services.gemini_service import gemini_service
 from ..services.llm_service import llm_service
@@ -25,6 +25,11 @@ def status():
 @router.post("/assessment-versions/generate")
 def generate_content(req: ContentInput):
     return workspace_service.generate_content(req)
+
+
+@router.post("/assessment-versions/import")
+def import_content(req: ExternalContentInput):
+    return workspace_service.import_content(req)
 
 
 @router.post("/assessment-versions/{content_id}/approve")
@@ -56,7 +61,7 @@ def approve_grade(submission_id: str, req: GradeInput):
 
 @router.post("/reports/generate")
 def generate_report(req: ReportInput):
-    return workspace_service.generate_report(req.studentId)
+    return workspace_service.generate_report(req.studentId, req.model_dump(exclude={"studentId"}))
 
 
 @router.post("/report-versions/{report_id}/finalize")

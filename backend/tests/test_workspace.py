@@ -95,6 +95,36 @@ class WorkspaceContractTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200, response.text)
         return response.json()["reports"][0]
 
+    def test_external_assessment_approval_metadata_and_scoped_report(self):
+        payload = {"topic": "UTS Matematika", "objective": "Penalaran", "subject": "Matematika",
+                   "assessmentType": "UTS", "semester": "GENAP", "materials": ["Pecahan", "Bilangan"],
+                   "weight": 2, "module": "Asesmen dari guru", "answerKey": json.loads(self.provider.generate_text(""))["answerKey"]}
+        with patch.object(self.provider, "generate_text", side_effect=AssertionError("Import must not invoke AI")):
+            response = self.client.post("/api/v1/assessment-versions/import", json=payload)
+        self.assertEqual(response.status_code, 200, response.text)
+        c = response.json()["contents"][0]
+        self.assertEqual(c["origin"], "EXTERNAL")
+        self.assertEqual(self.upload(c).status_code, 422)
+        c = self.client.post(f'/api/v1/assessment-versions/{c["id"]}/approve', json={"expectedVersion": 1}).json()["contents"][0]
+        submission = self.upload(c).json()["submissions"][0]
+        self.assertEqual(submission["contentVersion"], c["version"])
+        self.assertEqual(submission["materials"], ["Pecahan", "Bilangan"])
+        self.assertEqual(submission["weight"], 2)
+        self.approve(submission)
+        other = self.submission()
+        self.approve(other, items=[{**i, "score": 0} for i in other["items"]])
+        all_report = self.client.post("/api/v1/reports/generate", json={"studentId": "s1"}).json()["reports"][0]
+        self.assertEqual(all_report["average"], 53)
+        response = self.client.post("/api/v1/reports/generate", json={"studentId": "s1", "subject": "Matematika", "semester": "GENAP", "material": "Pecahan"})
+        self.assertEqual(response.status_code, 200, response.text)
+        report = response.json()["reports"][0]
+        self.assertEqual(report["snapshot"], f'{submission["id"]}:2')
+        self.assertNotIn(other["id"], self.provider.report_prompt)
+        self.assertEqual(report["scope"]["subject"], "Matematika")
+        self.assertEqual(self.client.post("/api/v1/reports/generate", json={"studentId": "s1", "subject": "Bahasa Inggris"}).status_code, 422)
+        payload["weight"] = 0
+        self.assertEqual(self.client.post("/api/v1/assessment-versions/import", json=payload).status_code, 422)
+
     def test_initial_api_workspace_has_no_fabricated_results(self):
         w = self.client.get("/api/v1/dashboard").json()
         self.assertTrue(w["rosterIsSample"])

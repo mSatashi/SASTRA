@@ -27,6 +27,10 @@ import {
   averageFor,
   percentage,
   snapshotFor,
+  type EvidenceScope,
+  type AnswerKeyItem,
+  type ExternalContentInput,
+  matchesEvidence,
   type Report,
   type Submission,
 } from "./domain";
@@ -42,6 +46,11 @@ import {
   PageHeading,
   SectionTitle,
 } from "./ui";
+import {
+  EvidenceFilters,
+  ExternalQuestions,
+  emptyQuestion,
+} from "./AssessmentFields";
 export function ContentPage() {
   const { data: w, busy, run } = useWorkspace();
   const [topic, setTopic] = useState(""),
@@ -52,27 +61,43 @@ export function ContentPage() {
     >("KUIS"),
     [semester, setSemester] = useState<"GANJIL" | "GENAP">("GANJIL"),
     [materialsText, setMaterialsText] = useState(""),
+    [source, setSource] = useState("AI"),
+    [answerKey, setAnswerKey] = useState<AnswerKeyItem[]>([emptyQuestion()]),
+    [weight, setWeight] = useState(1),
     [duration, setDuration] = useState(40),
     [selected, setSelected] = useState("");
   if (!w) return null;
   const content = w.contents.find((c) => c.id === selected) || w.contents[0];
   async function submit(e: FormEvent) {
     e.preventDefault();
+    const input: ExternalContentInput = {
+      topic,
+      objective,
+      duration,
+      className: "IV A",
+      weight,
+      module: objective,
+      answerKey: answerKey.map((q) => ({
+        ...q,
+        options:
+          q.type === "essay"
+            ? []
+            : q.options.map((o) => o.trim()).filter(Boolean),
+      })),
+      subject,
+      assessmentType,
+      semester,
+      materials: materialsText
+        .split(",")
+        .map((material) => material.trim())
+        .filter(Boolean),
+    };
     if (
       await run(
         () =>
-          client.generateContent({
-            topic,
-            objective,
-            duration,
-            subject,
-            assessmentType,
-            semester,
-            materials: materialsText
-              .split(",")
-              .map((material) => material.trim())
-              .filter(Boolean),
-          }),
+          source === "EXTERNAL"
+            ? client.importContent(input)
+            : client.generateContent(input),
         "Draf materi siap ditinjau.",
       )
     )
@@ -98,6 +123,15 @@ export function ContentPage() {
             subtitle="Mulai dengan tujuan yang ingin dicapai."
           />
           <form onSubmit={submit}>
+            <label htmlFor="assessment-source">Sumber asesmen</label>
+            <select
+              id="assessment-source"
+              value={source}
+              onChange={(e) => setSource(e.target.value)}
+            >
+              <option value="AI">Buat dengan ContentAgent</option>
+              <option value="EXTERNAL">Soal dari luar SASTRA</option>
+            </select>
             <label htmlFor="topic">Topik pembelajaran</label>
             <input
               id="topic"
@@ -195,6 +229,24 @@ export function ContentPage() {
               <option value={80}>80 menit · 2 pertemuan</option>
               <option value={120}>120 menit · 3 pertemuan</option>
             </select>
+            <label htmlFor="assessment-weight">Bobot relatif asesmen</label>
+            <input
+              id="assessment-weight"
+              type="number"
+              min="0.01"
+              max="100"
+              step="0.01"
+              required
+              value={weight || ""}
+              onChange={(e) => setWeight(Number(e.target.value))}
+            />
+            <small>
+              Nilai 1 berarti bobot setara. Bobot 2 dihitung dua kali bobot 1;
+              jenis asesmen tidak menentukan bobot otomatis.
+            </small>
+            {source === "EXTERNAL" && (
+              <ExternalQuestions value={answerKey} onChange={setAnswerKey} />
+            )}
             <div className="principles">
               <span>Mindful</span>
               <span>Meaningful</span>
@@ -202,7 +254,11 @@ export function ContentPage() {
             </div>
             <button className="btn primary full" disabled={busy}>
               <Sparkles size={17} />
-              {busy ? "Menyiapkan draf…" : "Buat draf materi & kuis"}
+              {busy
+                ? "Menyiapkan draf…"
+                : source === "EXTERNAL"
+                  ? "Simpan draf asesmen luar"
+                  : "Buat draf materi & kuis"}
             </button>
           </form>
         </section>
@@ -238,6 +294,14 @@ export function ContentPage() {
                   <span>{content.duration} MENIT</span>
                 </div>
                 <h2>{content.title}</h2>
+                <p>
+                  {content.subject || "IPAS"} ·{" "}
+                  {content.assessmentType || "KUIS"} ·{" "}
+                  {content.semester || "GANJIL"} · bobot {content.weight ?? 1}
+                </p>
+                <p>
+                  Materi: {(content.materials || [content.title]).join(", ")}
+                </p>
                 <p className="document-objective">{content.objective}</p>
                 <h3>Amati. Temukan. Ceritakan.</h3>
                 <p className="preserve-lines">{content.module}</p>
@@ -304,6 +368,7 @@ export function AssessmentPage() {
     [contentId, setContentId] = useState(""),
     [subjectFilter, setSubjectFilter] = useState(""),
     [typeFilter, setTypeFilter] = useState(""),
+    [semesterFilter, setSemesterFilter] = useState(""),
     [file, setFile] = useState<File | null>(null),
     [validation, setValidation] = useState(""),
     [preview, setPreview] = useState("");
@@ -321,7 +386,8 @@ export function AssessmentPage() {
   const filteredContents = availableContents.filter(
     (c) =>
       (!subjectFilter || (c.subject || "IPAS") === subjectFilter) &&
-      (!typeFilter || (c.assessmentType || "KUIS") === typeFilter),
+      (!typeFilter || (c.assessmentType || "KUIS") === typeFilter) &&
+      (!semesterFilter || (c.semester || "GANJIL") === semesterFilter),
   );
   const selectedContent =
     filteredContents.find((c) => c.id === contentId) || filteredContents[0];
@@ -426,8 +492,10 @@ export function AssessmentPage() {
                     onChange={(e) => setContentId(e.target.value)}
                     required
                   >
-                    {!availableContents.length && (
-                      <option value="">Setujui asesmen terlebih dahulu</option>
+                    {!filteredContents.length && (
+                      <option value="">
+                        Tidak ada asesmen disetujui sesuai pilihan
+                      </option>
                     )}
                     {filteredContents.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -479,6 +547,52 @@ export function AssessmentPage() {
                   </select>
                 </div>
               </div>
+            )}
+            <div className="form-row">
+              <div>
+                <label htmlFor="vision-class">Kelas</label>
+                <select id="vision-class">
+                  <option>IV A</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="vision-semester">Semester</label>
+                <select
+                  id="vision-semester"
+                  value={semesterFilter}
+                  onChange={(e) => {
+                    setSemesterFilter(e.target.value);
+                    setContentId("");
+                  }}
+                >
+                  <option value="">Semua semester</option>
+                  <option value="GANJIL">Ganjil</option>
+                  <option value="GENAP">Genap</option>
+                </select>
+              </div>
+            </div>
+            {!isDemo && !selectedContent && (
+              <p role="status">
+                Buat atau masukkan asesmen dari luar di{" "}
+                <Link to="/content">Materi & kuis</Link>, lalu setujui soal,
+                kunci dan rubriknya.
+              </p>
+            )}
+            {!isDemo && selectedContent && (
+              <details className="rubric-box">
+                <summary>
+                  Tinjau soal, kunci & rubrik · v{selectedContent.version}
+                </summary>
+                <ol>
+                  {selectedContent.questions.map((q, n) => (
+                    <li key={n} className="preserve-lines">
+                      {q}
+                    </li>
+                  ))}
+                </ol>
+                <p className="preserve-lines">{selectedContent.rubric}</p>
+                <p>Bobot relatif: {selectedContent.weight ?? 1}</p>
+              </details>
             )}
             {!isDemo && selectedContent && (
               <small>
@@ -630,7 +744,8 @@ function AssessmentReview({ submission: s }: { submission: Submission }) {
             {s.materials?.length ? (
               <p>
                 Semester {(s.semester || "GANJIL").toLowerCase()} · Materi:{" "}
-                {s.materials.join(", ")}
+                {s.materials.join(", ")} · versi asesmen{" "}
+                {s.contentVersion ?? "—"} · bobot {s.weight ?? 1}
               </p>
             ) : null}
           </div>
@@ -821,8 +936,13 @@ function AssessmentReview({ submission: s }: { submission: Submission }) {
 export function StudentsPage() {
   const { data: w } = useWorkspace();
   const [query, setQuery] = useState(""),
-    [selected, setSelected] = useState("");
+    [selected, setSelected] = useState(""),
+    [scope, setScope] = useState<EvidenceScope>({});
   if (!w) return null;
+  const filtered = {
+    ...w,
+    submissions: w.submissions.filter((s) => matchesEvidence(s, scope)),
+  };
   const students = w.students.filter((s) =>
     s.name.toLocaleLowerCase("id").includes(query.toLocaleLowerCase("id")),
   );
@@ -832,7 +952,7 @@ export function StudentsPage() {
     w.students
       .map(
         (s) =>
-          `${s.name},${approvedFor(w, s.id).length},${averageFor(w, s.id) ?? ""}`,
+          `${s.name},${approvedFor(filtered, s.id).length},${averageFor(filtered, s.id) ?? ""}`,
       )
       .join("\n");
   return (
@@ -854,7 +974,7 @@ export function StudentsPage() {
             <h2>
               Kelas IV A <Badge tone="green">{w.students.length} siswa</Badge>
             </h2>
-            <p>IPAS · Semester ganjil 2026/2027</p>
+            <p>Rata-rata memakai bobot relatif yang ditentukan guru.</p>
           </div>
           <div className="search-field">
             <Search size={17} />
@@ -869,6 +989,12 @@ export function StudentsPage() {
             />
           </div>
         </div>
+        <EvidenceFilters
+          prefix="gradebook"
+          records={w.submissions.filter((s) => s.status === "APPROVED")}
+          value={scope}
+          onChange={setScope}
+        />
         <div className="table-scroll">
           <table>
             <thead>
@@ -884,7 +1010,7 @@ export function StudentsPage() {
             </thead>
             <tbody>
               {students.map((s) => {
-                const avg = averageFor(w, s.id);
+                const avg = averageFor(filtered, s.id);
                 return (
                   <tr key={s.id}>
                     <td>
@@ -893,7 +1019,7 @@ export function StudentsPage() {
                         <strong>{s.name}</strong>
                       </div>
                     </td>
-                    <td>{approvedFor(w, s.id).length} asesmen</td>
+                    <td>{approvedFor(filtered, s.id).length} asesmen</td>
                     <td>
                       <strong className="table-score">{avg ?? "—"}</strong>
                       <span className="muted"> /100</span>
@@ -951,7 +1077,7 @@ export function StudentsPage() {
             title={`Riwayat ${chosen.name}`}
             subtitle="Telusuri sumber nilai sebelum menyusun laporan."
           />
-          {approvedFor(w, chosen.id).map((s) => (
+          {approvedFor(filtered, chosen.id).map((s) => (
             <div className="history-row" key={s.id}>
               <span className="file-icon">
                 <FileCheck2 size={20} />
@@ -959,7 +1085,11 @@ export function StudentsPage() {
               <div>
                 <strong>{s.title}</strong>
                 <p>
-                  {dateLabel(s.date)} · versi {s.version}
+                  {dateLabel(s.date)} · {s.subject || "IPAS"} ·{" "}
+                  {s.assessmentType || "KUIS"} · {s.semester || "GANJIL"} ·
+                  bobot {s.weight ?? 1} · versi {s.version}
+                  <br />
+                  {(s.materials || [s.title]).join(", ")}
                 </p>
               </div>
               <strong>{percentage(s.items)}/100</strong>
@@ -981,7 +1111,8 @@ export function ReportsPage() {
   const { data: w, busy, run } = useWorkspace();
   const [params] = useSearchParams();
   const [student, setStudent] = useState(params.get("student") || "s1"),
-    [selected, setSelected] = useState("");
+    [selected, setSelected] = useState(""),
+    [scope, setScope] = useState<EvidenceScope>({});
   if (!w) return null;
   const r = w.reports.find((r) => r.id === selected) || w.reports[0];
   return (
@@ -997,6 +1128,19 @@ export function ReportsPage() {
           analisis kompetensi atau generasi AI.
         </DemoNote>
       )}
+      <section className="panel">
+        <h2>Cakupan laporan · Kelas IV A</h2>
+        <EvidenceFilters
+          prefix="report"
+          records={w.submissions.filter((s) => s.status === "APPROVED")}
+          value={scope}
+          onChange={setScope}
+        />
+        <p>
+          Filter materi memilih asesmen yang mencakup materi tersebut; rata-rata
+          tetap nilai keseluruhan asesmen.
+        </p>
+      </section>
       <section className="panel report-generator">
         <div>
           <span className="report-generate-icon">
@@ -1012,7 +1156,7 @@ export function ReportsPage() {
             e.preventDefault();
             if (
               await run(
-                () => client.generateReport(student),
+                () => client.generateReport(student, scope),
                 "Draf laporan siap ditinjau.",
               )
             )
@@ -1035,7 +1179,7 @@ export function ReportsPage() {
           </select>
           <button
             className="btn primary"
-            disabled={busy || !approvedFor(w, student).length}
+            disabled={busy || !approvedFor(w, student, scope).length}
           >
             <Sparkles size={16} />
             {busy ? "Menyiapkan draf…" : "Buat draf"}
@@ -1106,7 +1250,7 @@ function ReportEditor({ report: r }: { report: Report }) {
     [reviewed, setReviewed] = useState(false);
   if (!w) return null;
   const s = w.students.find((s) => s.id === r.studentId)!;
-  const changed = r.snapshot !== snapshotFor(w, r.studentId);
+  const changed = r.snapshot !== snapshotFor(w, r.studentId, r.scope);
   return (
     <section className="panel report-document">
       <div className="report-doc-header">
@@ -1120,7 +1264,12 @@ function ReportEditor({ report: r }: { report: Report }) {
         </Badge>
       </div>
       <h2>{s.name}</h2>
-      <p className="muted">IPAS · Kelas IV A · Semester ganjil 2026/2027</p>
+      <p className="muted">
+        Kelas IV A · {r.scope?.subject || "Semua mapel"} ·{" "}
+        {r.scope?.semester || "Semua semester"} ·{" "}
+        {r.scope?.assessmentType || "Semua jenis"}{" "}
+        {r.scope?.material ? `· ${r.scope.material}` : ""}
+      </p>
       <div className="report-source">
         <span>
           Rata-rata pada versi sumber <strong>{r.average}/100</strong>
@@ -1184,7 +1333,7 @@ function ReportEditor({ report: r }: { report: Report }) {
       )}
       {r.status === "FINAL" && (
         <DownloadButton
-          text={`SASTRA — Laporan perkembangan\n${s.name} | Kelas IV A | IPAS\nRata-rata: ${r.average}\n\n${r.narrative}\n\nVersi laporan: ${r.version}\nSumber: ${r.snapshot}`}
+          text={`SASTRA — Laporan perkembangan\n${s.name} | Kelas IV A | ${r.scope?.subject || "Semua mapel"} | ${r.scope?.semester || "Semua semester"}\nRata-rata: ${r.average}\n\n${r.narrative}\n\nVersi laporan: ${r.version}\nSumber: ${r.snapshot}`}
           filename={`laporan-${s.name.toLowerCase().replaceAll(" ", "-")}.txt`}
         >
           <ArrowDownToLine size={16} />

@@ -45,16 +45,20 @@ def activity(w, agent, text):
     w["activities"].insert(0, {"id": identifier(), "agent": agent, "text": text, "time": now()})
 
 
-def approved(w, student_id):
-    return [s for s in w["submissions"] if s["studentId"] == student_id and s["status"] == "APPROVED"]
+def approved(w, student_id, scope=None):
+    scope = scope or {}
+    return [s for s in w["submissions"] if s["studentId"] == student_id and s["status"] == "APPROVED"
+            and all(not scope.get(k) or s.get(k, default) == scope[k]
+                    for k, default in (("subject", "IPAS"), ("semester", "GANJIL"), ("assessmentType", "KUIS")))
+            and (not scope.get("material") or scope["material"] in s.get("materials", [s["title"]]))]
 
 
 def percentage(items):
     return math.floor(sum(i["score"] for i in items) / sum(i["max"] for i in items) * 100 + 0.5)
 
 
-def snapshot(w, student_id):
-    return "|".join(sorted(f'{s["id"]}:{s["version"]}' for s in approved(w, student_id)))
+def snapshot(w, student_id, scope=None):
+    return "|".join(sorted(f'{s["id"]}:{s["version"]}' for s in approved(w, student_id, scope)))
 
 
 def find(rows, item_id):
@@ -150,10 +154,20 @@ class WorkspaceService:
         for question in generated.answerKey:
             if question.type == "multiple_choice" and len(question.options) != 4:
                 raise AIServiceError("Soal pilihan ganda dari AI belum lengkap. Coba buat ulang.", 502)
+        return self._save_content(req, generated, "AI")
+
+    def import_content(self, req):
+        for question in req.answerKey:
+            if question.type == "multiple_choice" and len(question.options) < 2:
+                raise WorkspaceError("Soal pilihan ganda memerlukan minimal dua opsi.")
+        return self._save_content(req, req, "EXTERNAL")
+
+    def _save_content(self, req, generated, origin):
         key = [q.model_dump() for q in generated.answerKey]
         content = {"id": identifier(), "title": req.topic, "objective": req.objective,
                    "subject": req.subject, "assessmentType": req.assessmentType,
                    "semester": req.semester, "materials": req.materials or [req.topic],
+                   "className": req.className, "weight": req.weight, "origin": origin,
                    "duration": req.duration, "version": 1, "status": "DRAFT",
                    "module": generated.module, "answerKey": key,
                    "questions": [q["question"] + ("\n" + "\n".join(q["options"]) if q["options"] else "") for q in key],
@@ -161,7 +175,7 @@ class WorkspaceService:
 
         def change(w):
             w["contents"].insert(0, content)
-            activity(w, "ContentAgent", f'Draf materi “{req.topic}” dibuat dengan {self.provider.model_name}; menunggu review guru.')
+            activity(w, "ContentAgent", f'Draf asesmen “{req.topic}” ({origin}) disimpan; menunggu review guru.')
         return self.mutate(change)
 
     def approve_content(self, content_id, version):
@@ -216,7 +230,8 @@ class WorkspaceService:
                           "rubric": f'Kunci: {key["correctAnswer"]}. {key["rubric"]}',
                           "feedback": answer.feedback, "score": answer.score, "max": key["max"], "type": key["type"]})
         submission = {"id": identifier(), "studentId": student_id, "title": content["title"],
-                      "contentId": content_id, "subject": content.get("subject", "IPAS"),
+                      "contentId": content_id, "contentVersion": content["version"],
+                      "className": content.get("className", "IV A"), "weight": content.get("weight", 1), "subject": content.get("subject", "IPAS"),
                       "assessmentType": content.get("assessmentType", "KUIS"),
                       "semester": content.get("semester", "GANJIL"),
                       "materials": content.get("materials", [content["title"]]),
@@ -265,29 +280,31 @@ class WorkspaceService:
             activity(w, "Guru", f'Nilai {find(w["students"], s["studentId"])["name"]} disetujui: {percentage(s["items"])}/100.')
         return self.mutate(change)
 
-    def generate_report(self, student_id):
+    def generate_report(self, student_id, scope=None):
         w = self.read()
         student = find(w["students"], student_id)
-        evidence = approved(w, student_id)
+        evidence = approved(w, student_id, scope)
         if not evidence:
             raise WorkspaceError("Belum ada nilai yang disetujui untuk siswa ini.")
-        source = snapshot(w, student_id)
-        average = math.floor(sum(percentage(s["items"]) for s in evidence) / len(evidence) + 0.5)
+        source = snapshot(w, student_id, scope)
+        average = math.floor(sum(percentage(s["items"]) * s.get("weight", 1) for s in evidence) / sum(s.get("weight", 1) for s in evidence) + 0.5)
         self._ready()
         prompt = (
-            "Susun draf narasi perkembangan IPAS kelas IV berbahasa Indonesia yang empatik. "
+            "Susun draf narasi perkembangan kelas IV sesuai mapel dan semester pada data, dalam bahasa Indonesia yang empatik. "
+            "Bedakan bukti tugas, kuis, UTS dan UAS; sebut materi yang memerlukan pendampingan hanya jika didukung jawaban/rubrik. "
+            "Jangan menganggap skor asesmen multi-materi sebagai skor tiap materi. Rata-rata memakai bobot relatif pilihan guru. "
             "Gunakan hanya bukti asesmen yang sudah disetujui guru di bawah. Jangan menyimpulkan "
             "karakter, diagnosis, atau kemampuan yang tidak ada buktinya. Jika hanya satu asesmen, "
             "jelaskan bahwa bukti belum cukup untuk menilai tren perkembangan. Jangan mengubah rata-rata. "
             'Keluarkan JSON {"narrative":"narasi dan saran tindak lanjut"}. Data: '
-            + json.dumps({"name": student["name"], "average": average, "assessments": evidence}, ensure_ascii=False)
+            + json.dumps({"name": student["name"], "scope": scope or {}, "average": average, "assessments": evidence}, ensure_ascii=False)
         )
         result = self._parse(self.provider.generate_text(prompt, system_instruction=SYSTEM), GeneratedReport)
         report = {"id": identifier(), "studentId": student_id, "status": "DRAFT", "version": 1,
-                  "snapshot": source, "average": average, "createdAt": now(), "narrative": result.narrative}
+                  "scope": scope or {}, "snapshot": source, "average": average, "createdAt": now(), "narrative": result.narrative}
 
         def change(current):
-            if snapshot(current, student_id) != source:
+            if snapshot(current, student_id, scope) != source:
                 raise WorkspaceError("Sumber nilai berubah selama generasi. Buat draf ulang.", 409)
             current["reports"].insert(0, report)
             activity(current, "ReportAgent", f'Draf laporan {student["name"]} disusun AI dari {len(evidence)} nilai disetujui.')
@@ -297,7 +314,7 @@ class WorkspaceService:
         def change(w):
             report = find(w["reports"], report_id)
             check_version(report, req.expectedVersion)
-            if report["status"] != "DRAFT" or report["snapshot"] != snapshot(w, report["studentId"]):
+            if report["status"] != "DRAFT" or report["snapshot"] != snapshot(w, report["studentId"], report.get("scope")):
                 raise WorkspaceError("Sumber laporan berubah atau laporan sudah final. Buat draf baru.", 409)
             report.update(status="FINAL", narrative=req.narrative, version=report["version"] + 1)
             activity(w, "Guru", "Laporan perkembangan ditinjau dan difinalisasi.")

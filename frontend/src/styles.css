@@ -3667,3 +3667,24 @@ td .badge {
   bottom: 16px;
   z-index: 50;
 }
+
+.evidence-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+  margin: 16px 0;
+}
+.evidence-filters select {
+  width: 100%;
+}
+.external-questions fieldset {
+  min-width: 0;
+  border: 1px solid var(--border, #dce4dc);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 16px 0;
+}
+.external-questions legend {
+  font-weight: 600;
+  padding: 0 6px;
+}

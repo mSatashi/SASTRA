@@ -5,6 +5,8 @@ import {
   generateReport,
   makeFixture,
   type ContentInput,
+  type ExternalContentInput,
+  type EvidenceScope,
   type GradeItem,
   type UploadInput,
   type Workspace,
@@ -24,9 +26,10 @@ export interface SastraClient {
     confirmed: boolean,
   ): Promise<Workspace>;
   generateContent(input: ContentInput): Promise<Workspace>;
+  importContent(input: ExternalContentInput): Promise<Workspace>;
   approveContent(id: string, version: number): Promise<Workspace>;
   upload(input: UploadInput): Promise<Workspace>;
-  generateReport(studentId: string): Promise<Workspace>;
+  generateReport(studentId: string, scope?: EvidenceScope): Promise<Workspace>;
   finalizeReport(
     id: string,
     version: number,
@@ -69,6 +72,8 @@ class DemoClient implements SastraClient {
         assessmentType: i.assessmentType,
         semester: i.semester,
         materials: i.materials.length ? i.materials : [i.topic.trim()],
+        className: i.className || "IV A",
+        weight: i.weight || 1,
         duration: i.duration,
         version: 1,
         status: "DRAFT",
@@ -83,6 +88,23 @@ class DemoClient implements SastraClient {
         "ContentAgent",
         `Draf contoh “${i.topic}” disiapkan untuk ditinjau.`,
       );
+      return w;
+    });
+  }
+  importContent(i: ExternalContentInput) {
+    return this.change((w) => {
+      w.contents.unshift({
+        ...i,
+        id: crypto.randomUUID(),
+        title: i.topic,
+        version: 1,
+        status: "DRAFT",
+        origin: "EXTERNAL",
+        questions: i.answerKey.map((q) => q.question),
+        rubric: i.answerKey
+          .map((q) => `Kunci: ${q.correctAnswer} · ${q.rubric} (${q.max} poin)`)
+          .join("\n"),
+      });
       return w;
     });
   }
@@ -123,8 +145,8 @@ class DemoClient implements SastraClient {
       return w;
     });
   }
-  generateReport(studentId: string) {
-    return this.change((w) => generateReport(w, studentId));
+  generateReport(studentId: string, scope: EvidenceScope = {}) {
+    return this.change((w) => generateReport(w, studentId, scope));
   }
   finalizeReport(id: string, v: number, narrative: string) {
     return this.change((w) => finalizeReport(w, id, v, narrative));
@@ -180,6 +202,9 @@ class BackendClient implements SastraClient {
   generateContent(input: ContentInput) {
     return this.mutate("/assessment-versions/generate", input);
   }
+  importContent(input: ExternalContentInput) {
+    return this.mutate("/assessment-versions/import", input);
+  }
   approveContent(id: string, expectedVersion: number) {
     return this.mutate(
       `/assessment-versions/${encodeURIComponent(id)}/approve`,
@@ -194,8 +219,8 @@ class BackendClient implements SastraClient {
     if (i.contentId) f.set("contentId", i.contentId);
     return this.mutate("/submissions", f);
   }
-  generateReport(studentId: string) {
-    return this.mutate("/reports/generate", { studentId });
+  generateReport(studentId: string, scope: EvidenceScope = {}) {
+    return this.mutate("/reports/generate", { studentId, ...scope });
   }
   finalizeReport(id: string, expectedVersion: number, narrative: string) {
     return this.mutate(`/report-versions/${encodeURIComponent(id)}/finalize`, {

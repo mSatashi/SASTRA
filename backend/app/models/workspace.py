@@ -13,6 +13,8 @@ class ContentInput(BaseModel):
     semester: Literal["GANJIL", "GENAP"] = "GANJIL"
     materials: list[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]] = Field(default_factory=list, max_length=10)
     duration: Literal[40, 80, 120] = 40
+    className: Literal["IV A"] = "IV A"
+    weight: Annotated[FiniteFloat, Field(gt=0, le=100)] = 1
 
 
 class VersionInput(BaseModel):
@@ -27,6 +29,10 @@ class GradeInput(VersionInput):
 
 class ReportInput(BaseModel):
     studentId: str = Field(min_length=1, max_length=100)
+    subject: str = Field(default="", max_length=80)
+    semester: Literal["", "GANJIL", "GENAP"] = ""
+    assessmentType: Literal["", "TUGAS", "KUIS", "UTS", "UAS"] = ""
+    material: str = Field(default="", max_length=120)
 
 
 class FinalizeInput(VersionInput):
@@ -45,6 +51,10 @@ class AnswerKeyItem(BaseModel):
 class GeneratedContent(BaseModel):
     module: Text
     answerKey: list[AnswerKeyItem] = Field(min_length=1, max_length=20)
+
+
+class ExternalContentInput(ContentInput, GeneratedContent):
+    """Teacher-supplied questions must follow the same approval flow as AI drafts."""
 
 
 class GradedAnswer(BaseModel):
