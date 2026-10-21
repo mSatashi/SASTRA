@@ -18,6 +18,8 @@ Platform ini mengintegrasikan 3 fitur utama:
 
 Frontend React + TypeScript memiliki mode demo (default, data sintetis di browser) dan mode API yang terhubung ke backend `/api/v1`. Backend memakai Vertex ADC melalui SDK `google-genai`; generasi materi, OCR dengan rubrik disetujui, dan narasi laporan memerlukan akses model. Setup lokal, Cloud Shell, serta build gabungan ada di [panduan integrasi Vertex](docs/VERTEX_INTEGRATION.md). Mode API masih prototipe satu kelas dengan roster contoh, tanpa login produksi.
 
+Website hackathon: [buka SASTRA di Cloud Run](https://sastra-workspace-1022738196904.asia-southeast2.run.app). Masuk dengan kode akses tim yang disimpan di Secret Manager; frontend dan API berjalan di cloud. Detail revisi, verifikasi, dan batas penyimpanan ada di [catatan deployment](docs/CLOUD_RUN_DEPLOYMENT.md).
+
 Untuk mencoba frontend saja (Node.js 22.12+):
 
 ```bash

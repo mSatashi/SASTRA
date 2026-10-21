@@ -1,96 +1,99 @@
 # Cloud Run deployment — 21 October 2026
 
-## Deployed service
+## Current public website
+
+https://sastra-workspace-1022738196904.asia-southeast2.run.app
+
+The React frontend and FastAPI API run together at this HTTPS origin. No local
+Vite server, gcloud proxy or local Python process is needed to use the website.
+Sign in with the shared team access code stored in Secret Manager
+[`sastra-web-team-code`, version 1](https://console.cloud.google.com/security/secret-manager/secret/sastra-web-team-code/versions?project=hackathon-primestep-02).
+The code is deliberately absent from this repository and the frontend bundle.
+It is a hackathon team gate, not individual teacher accounts.
+
+## Deployment record
 
 - Project: `hackathon-primestep-02`.
 - Service: `sastra-workspace`, region `asia-southeast2`.
-- URL: https://sastra-workspace-1022738196904.asia-southeast2.run.app
 - Canonical URL: https://sastra-workspace-lh2w4q6cna-et.a.run.app
-- Revision: `sastra-workspace-00001-gqf`, Ready, serving 100% of traffic.
-- Source commit: `1d157b0413f8484faf28a09890c05df6aca354c5` on
-  `feat/vertex-workspace-integration`. `main` was not changed or merged.
-- Cloud Build: `35cc104e-3191-4362-83b7-211671cfc5b6`, SUCCESS.
-- Image digest: `asia-southeast2-docker.pkg.dev/hackathon-primestep-02/sastra/sastra-app@sha256:abfcc3ae043ccb3403c23fbcb34baa488900175069ff6c8fb4fdc7926aab149e`.
+- Ready revision: `sastra-workspace-00002-n6q`, serving 100% of traffic.
+- Source commit: `69b578f` on `feat/vertex-workspace-integration`.
+  `main` was not changed or merged.
+- Cloud Build: `3bcd282a-fb3b-4fe5-9ddd-2da473c50bae`, SUCCESS.
+- Image: `asia-southeast2-docker.pkg.dev/hackathon-primestep-02/sastra/sastra-app@sha256:de342fcf36ed952d0b69216a3aa03282717eab1cb28172e291941eccbdb5ad8c`.
 - Runtime identity: `hackathon-runtime@hackathon-primestep-02.iam.gserviceaccount.com`.
-- Resources: 1 CPU, 512 MiB, revision max instances 1, minimum instances 0,
+- Resources: 1 CPU, 512 MiB, revision max instances 1, min instances 0,
   concurrency 8, request timeout 300 seconds, container port 8080.
+- Environment: `LLM_PROVIDER=gemini`, `GEMINI_AUTH_MODE=vertex`,
+  `GCP_PROJECT=hackathon-primestep-02`, `GCP_LOCATION=global`,
+  `GEMINI_MODEL=gemini-3.8-flash`, `WEB_PUBLIC_MODE=true`.
+- Secret binding: `WEB_ACCESS_CODE=sastra-web-team-code:1`.
+  Vertex uses the runtime identity, without an API key or downloaded account key.
 
-The combined image serves FastAPI and the React UI in API mode at the same origin.
-Runtime variables: `LLM_PROVIDER=gemini`, `GEMINI_AUTH_MODE=vertex`,
-`GCP_PROJECT=hackathon-primestep-02`, `GCP_LOCATION=global`,
-`GEMINI_MODEL=gemini-3.8-flash`. No API key or downloaded service-account key was used.
+The Cloud SDK ignore matcher verified 48 allowed code/config files (319.7 KiB)
+before upload. Environment files, credentials, local databases, dependencies,
+virtual environments and unrelated documents were excluded. The manual build uses
+`cloudbuild.app.yaml` and `.gcloudignore.app`; no automatic deployment trigger was
+created or changed. Frontend formatting, 7 domain tests and the production build
+passed locally and in Cloud Build. All 24 backend tests passed locally.
 
-The source archive contained 46 allowed code/config files (310.2 KiB uncompressed).
-The actual Cloud SDK ignore matcher confirmed that `.env`, credentials, database
-files, virtual environments, local dependencies and unrelated workflow documents
-were excluded. The build was submitted manually using `cloudbuild.app.yaml` and
-`.gcloudignore.app`; no GitHub trigger was changed and auto-deployment was not added.
+## Public access and API boundary
 
-## Access
+The guarded revision was first deployed with IAM authentication required. Its team
+login, logout, API protection and Vertex configuration were verified before the
+service was made public with `gcloud run services update --no-invoker-iam-check`.
+This is the [documented Cloud Run public access method](https://docs.cloud.google.com/run/docs/authenticating/public).
 
-The service requires IAM authentication. No public `allUsers` grant was added.
-An unauthenticated request to `/api/v1/status` returned 403. The existing deploying
-user could access it through the official Cloud Run proxy.
+- Static UI and `GET /api/v1/session` are publicly accessible.
+- Workspace data, uploaded answers and model calls require a signed session.
+- Login sets a Secure, HttpOnly, SameSite=Strict cookie lasting at most 8 hours.
+- Incorrect codes return 401; 30 failed attempts within 5 minutes rate-limit login
+  within the running process. This is not distributed abuse protection.
+- Cross-origin browser API mutations return 403.
+- Legacy `/api/...` configuration routes and API documentation return 404 in public mode.
+- Missing/short access-code configuration fails closed with 503.
+- Rotate the Secret Manager value and deploy its new version to invalidate sessions.
+  Keep `WEB_PUBLIC_MODE=true` on every publicly accessible revision.
 
-To connect the local Vite API-mode preview (its `/api` proxy targets port 8000):
+To return to IAM-only access:
 
-```powershell
-gcloud run services proxy sastra-workspace --project=hackathon-primestep-02 --region=asia-southeast2 --port=8000
+```bash
+gcloud run services update sastra-workspace --project=hackathon-primestep-02 --region=asia-southeast2 --invoker-iam-check
 ```
 
-Keep that terminal open, and use http://127.0.0.1:3001 while the existing API-mode
-Vite process runs. The local FastAPI process on port 8000 was stopped and replaced
-by this authenticated proxy; browser requests now reach the deployed backend.
+## Live public verification
 
-To browse the complete cloud-hosted UI without running Vite:
+Requests used the real HTTPS URL without Google IAM tokens or a local proxy:
 
-```powershell
-gcloud run services proxy sastra-workspace --project=hackathon-primestep-02 --region=asia-southeast2 --port=3002
-```
+1. `/`, `/reports` and session status returned 200. Anonymous dashboard access and
+   an incorrect code returned 401; cross-origin login returned 403.
+2. The correct code issued the secure session cookie and allowed dashboard access.
+   Logout cleared access and returned the dashboard to 401.
+3. Content generation created **Tes web publik - Fotosintesis** with the real
+   `gemini-3.8-flash` model via the runtime service account. Status reported Vertex,
+   `clientConfigured=true` and `lastRequestSucceeded=true`.
+4. Browser sign-in opened the cloud-hosted dashboard. The content page displayed
+   that generated module, questions, answer keys and rubric.
 
-Then open http://127.0.0.1:3002. Both proxy processes were left running after
-verification. They use the active gcloud account and must be restarted after closing
-their terminal/process. This local proxy does not make the service public.
+Ignored evidence: `docs/qa/public-web-live-evidence.json` and
+`docs/qa/public-sastra-dashboard.png`.
 
-## Live verification
-
-These checks used the deployed service and its runtime identity, with synthetic
-students/documents. They were not mocked model calls:
-
-1. `/api/v1/status` returned 200 with Vertex mode, the correct project/model/location,
-   `clientConfigured=true`, and after inference `lastRequestSucceeded=true`.
-2. Content generation returned a fotosintesis module, a PG question, an essay,
-   answer keys and rubrics. Teacher approval changed its status to APPROVED.
-3. A synthetic PNG answer sheet was uploaded through the cloud-hosted browser UI.
-   Vision transcribed both answers and proposed 25/25 and 25/25. The original image
-   downloaded from the asset endpoint matched the uploaded bytes exactly.
-4. The grade remained pending until the review checkbox and teacher approval were
-   submitted. The gradebook then showed one approved assessment with average 100.
-5. Report generation produced a narrative from that approved evidence, explicitly
-   noting that a single assessment is insufficient to infer a learning trend.
-6. Teacher review/finalization produced report version 2 with FINAL status,
-   average 100 and its source snapshot. The final text report was downloaded.
-7. `/` and `/reports` returned 200, and the browser showed no captured console
-   warnings/errors. The public edge returned 404 for `/healthz`; use the authenticated
-   `/api/v1/status` endpoint for the verified external status check. Container-local
-   `/healthz` was verified separately before deployment; the Cloud Run startup
-   readiness check uses its container TCP port.
-
-Ignored local evidence is in `docs/qa/cloud-run-live-evidence.json`,
-`docs/qa/cloud-run-final-report.png`, and the synthetic PNG fixture in `docs/qa/`.
+The earlier IAM-private revision `sastra-workspace-00001-gqf` (build
+`35cc104e-3191-4362-83b7-211671cfc5b6`, source `1d157b0`) also passed a complete
+synthetic workflow: generate and approve material, upload a synthetic PNG, real
+Vision transcription, teacher grade approval, report generation, finalization and
+text download. Its proposed scores were 25/25 + 25/25, producing an approved average
+of 100. The downloaded answer image matched the uploaded bytes. Those synthetic
+records belonged to the earlier instance and were replaced with the new revision.
 
 ## Data limits
 
-This is still a single-class prototype with a sample roster and no teacher account
-system. SQLite and uploaded images are stored in the instance filesystem. A Cloud
-Run restart/replacement may lose those files; scale-to-zero is enabled. Use only
-synthetic data until shared durable storage and teacher authorization are implemented.
-Do not treat a one-instance limit as durable storage.
+This remains a single shared classroom prototype with a sample roster. All team
+code holders share its workspace. SQLite and uploaded images live in the instance
+filesystem; a restart, replacement or scale-to-zero can lose them. Use synthetic
+data until shared durable storage and individual teacher authorization exist.
+A one-instance limit does not make container files durable. The latest deployment
+check left one clearly named synthetic material draft for review.
 
-The live verification intentionally left one clearly named synthetic deployment
-assessment and its report in the current running instance. No real student data
-was uploaded.
-
-For subsequent builds, see [VERTEX_INTEGRATION.md](VERTEX_INTEGRATION.md). The deployed
-code is pinned to the source commit above; later documentation-only commits do not
-require a new image.
+For subsequent builds, see [VERTEX_INTEGRATION.md](VERTEX_INTEGRATION.md).
+Documentation-only commits after the source commit above do not require a new image.

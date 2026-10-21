@@ -104,7 +104,10 @@ SPA routes such as `/reports` return the UI; unknown `/api/...` routes return JS
 ### Prototype limits
 
 The workspace is a single shared teacher/class prototype with no production login.
-Keep the Cloud Run service authenticated and use synthetic data. SQLite and image
+The public hackathon site uses the shared team session gate described in
+[CLOUD_RUN_DEPLOYMENT.md](CLOUD_RUN_DEPLOYMENT.md). Keep `WEB_PUBLIC_MODE=true` with
+its Secret Manager binding whenever IAM invocation is public; otherwise require
+Cloud Run IAM authentication. Use synthetic data. SQLite and image
 blobs live in `backend/data/workspace.sqlite3` (override `SASTRA_WORKSPACE_DB`). This
 is durable across local restarts, but Cloud Run's writable container storage is
 ephemeral and separate between instances. Use managed shared persistence and teacher
