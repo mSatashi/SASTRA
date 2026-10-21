@@ -16,8 +16,20 @@ Platform ini mengintegrasikan 3 fitur utama:
 
 ## 🚀 Cara Menjalankan Aplikasi
 
+Frontend pada branch `feat/teacher-dashboard` adalah prototipe ruang kerja guru berbasis React + TypeScript. Default memakai data sintetis di browser, tanpa akun, Docker, atau API key. Backend FastAPI tetap tersedia di repositori; adapter frontend baru belum diselaraskan dengan endpoint backend tersebut. Petunjuk lengkap, kontrak integrasi, dan batas demo ada di [frontend/README.md](frontend/README.md).
+
+Untuk mencoba frontend saja (Node.js 22.12+):
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+Buka **http://127.0.0.1:3000/**. Hasil pada mode demo adalah template/fixture, bukan inferensi Gemini atau OCR nyata.
+
 ### Opsi 1: Satu Klik di Windows
-Cukup klik ganda file [`start-sastra.bat`](file:///c:/Users/msata/Projects/Hackathon%20Agentic%20AI/start-sastra.bat). Script ini akan otomatis menyalakan server backend dan frontend.
+Cukup klik ganda file [`start-sastra.bat`](start-sastra.bat). Script ini akan otomatis menyalakan server backend dan frontend.
 
 ### Opsi 2: Manual lewat Terminal
 
@@ -33,7 +45,7 @@ python backend/run.py
 cd frontend
 npm run dev
 ```
-* Frontend Dashboard berjalan di: `http://localhost:5173`
+* Frontend Dashboard berjalan di: `http://127.0.0.1:3000`
 
 ---
 
@@ -46,8 +58,12 @@ npm run dev
 
 ---
 
-## 🔑 Mode Inferensi AI: Google Gemini atau Ollama (Lokal)
-SASTRA mendukung dua penyedia model yang dapat dipilih lewat `.env` maupun tombol **"Pengaturan Model AI"** di sidebar:
+## 🔑 Mode Frontend Demo dan Provider AI Backend
+
+* **Frontend demo:** Tidak memerlukan API key. Generator materi, transkripsi dan narasi memakai template/fixture sintetis yang diberi label dalam UI.
+* **Integrasi live berikutnya:** Selaraskan adapter di `frontend/src/client.ts` dengan backend FastAPI, autentikasi, job AI, dan penyimpanan bukti. Konfigurasi kredensial Gemini di sisi backend; jangan memasukkan API key ke variabel `VITE_*` atau bundle frontend.
+
+Backend SASTRA mendukung dua penyedia model yang dapat dipilih lewat `backend/.env` atau endpoint konfigurasi backend. Frontend TypeScript pada branch ini belum menyediakan panel pengaturan provider; kontrak integrasinya masih perlu diselaraskan.
 
 | Provider | Kapan dipakai | Konfigurasi |
 | :--- | :--- | :--- |
@@ -72,7 +88,7 @@ SASTRA mendukung dua penyedia model yang dapat dipilih lewat `.env` maupun tombo
    OLLAMA_NUM_CTX=8192
    OLLAMA_TIMEOUT=300
    ```
-4. Jalankan backend seperti biasa. Provider juga bisa diganti saat runtime dari UI tanpa restart (pengaturan dari UI tidak disimpan ke `.env`).
+4. Jalankan backend seperti biasa. Backend juga menyediakan endpoint untuk mengubah provider saat runtime tanpa restart; pengaturan runtime tersebut tidak disimpan ke `.env`. Panel pengaturan frontend lama tidak termasuk frontend demo TypeScript ini.
 
 **Catatan Ollama:**
 * Vision Grader membutuhkan model multimodal (gemma3, qwen2.5vl, llava, llama3.2-vision) dan hanya menerima **gambar** (JPG/PNG). Upload PDF akan memakai mode fallback saat provider Ollama aktif.
