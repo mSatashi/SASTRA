@@ -5,6 +5,7 @@ export type GradeItem = {
   feedback: string;
   score: number;
   max: number;
+  type?: "multiple_choice" | "essay";
 };
 export type Submission = {
   id: string;
@@ -16,6 +17,8 @@ export type Submission = {
   identityConfirmed: boolean;
   items: GradeItem[];
   assetName?: string;
+  assetMimeType?: string;
+  contentId?: string;
   history?: { version: number; items: GradeItem[] }[];
 };
 export type Student = {
@@ -33,6 +36,7 @@ export type Content = {
   version: number;
   module: string;
   questions: string[];
+  rubric?: string;
 };
 export type Report = {
   id: string;
@@ -57,13 +61,19 @@ export type Workspace = {
   contents: Content[];
   reports: Report[];
   activities: Activity[];
+  rosterIsSample?: boolean;
 };
 export type ContentInput = {
   topic: string;
   objective: string;
   duration: number;
 };
-export type UploadInput = { studentId: string; title: string; file: File };
+export type UploadInput = {
+  studentId: string;
+  title: string;
+  file: File;
+  contentId?: string;
+};
 export function percentage(items: GradeItem[]) {
   return Math.round(
     (items.reduce((s, i) => s + i.score, 0) /

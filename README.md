@@ -16,7 +16,7 @@ Platform ini mengintegrasikan 3 fitur utama:
 
 ## 🚀 Cara Menjalankan Aplikasi
 
-Frontend pada branch `feat/teacher-dashboard` adalah prototipe ruang kerja guru berbasis React + TypeScript. Default memakai data sintetis di browser, tanpa akun, Docker, atau API key. Backend FastAPI tetap tersedia di repositori; adapter frontend baru belum diselaraskan dengan endpoint backend tersebut. Petunjuk lengkap, kontrak integrasi, dan batas demo ada di [frontend/README.md](frontend/README.md).
+Frontend React + TypeScript memiliki mode demo (default, data sintetis di browser) dan mode API yang terhubung ke backend `/api/v1`. Backend memakai Vertex ADC melalui SDK `google-genai`; generasi materi, OCR dengan rubrik disetujui, dan narasi laporan memerlukan akses model. Setup lokal, Cloud Shell, serta build gabungan ada di [panduan integrasi Vertex](docs/VERTEX_INTEGRATION.md). Mode API masih prototipe satu kelas dengan roster contoh, tanpa login produksi.
 
 Untuk mencoba frontend saja (Node.js 22.12+):
 
@@ -61,16 +61,16 @@ npm run dev
 ## 🔑 Mode Frontend Demo dan Provider AI Backend
 
 * **Frontend demo:** Tidak memerlukan API key. Generator materi, transkripsi dan narasi memakai template/fixture sintetis yang diberi label dalam UI.
-* **Integrasi live berikutnya:** Selaraskan adapter di `frontend/src/client.ts` dengan backend FastAPI, autentikasi, job AI, dan penyimpanan bukti. Konfigurasi kredensial Gemini di sisi backend; jangan memasukkan API key ke variabel `VITE_*` atau bundle frontend.
+* **Mode API:** Jalankan backend dan set `VITE_DATA_MODE=api` sebelum menyalakan/build frontend. Kontrak `/api/v1` menyimpan bukti dan persetujuan guru di SQLite. Autentikasi Gemini tetap di backend; jangan memasukkan kredensial ke `VITE_*` atau bundle frontend.
 
-Backend SASTRA mendukung dua penyedia model yang dapat dipilih lewat `backend/.env` atau endpoint konfigurasi backend. Frontend TypeScript pada branch ini belum menyediakan panel pengaturan provider; kontrak integrasinya masih perlu diselaraskan.
+Backend mendukung Gemini dan Ollama lewat `backend/.env` atau endpoint konfigurasi backend. Frontend belum menyediakan panel pengaturan provider.
 
 | Provider | Kapan dipakai | Konfigurasi |
 | :--- | :--- | :--- |
-| **Google Gemini** (cloud) | Kualitas tertinggi, butuh internet & API key | `GEMINI_API_KEY`, `GEMINI_MODEL` |
+| **Google Gemini / Vertex** (cloud) | Inferensi dengan ADC atau identitas Cloud Run | `GEMINI_AUTH_MODE=vertex`, `GCP_PROJECT`, `GCP_LOCATION=global`, `GEMINI_MODEL=gemini-3.8-flash` |
 | **Ollama** (lokal) | Data siswa tidak keluar dari komputer sekolah, bisa offline | `OLLAMA_BASE_URL`, `OLLAMA_MODEL`, `OLLAMA_VISION_MODEL` |
 
-* **Mode Demo Standby:** Bila provider aktif belum siap (tanpa API key / server Ollama mati / model belum di-pull), SASTRA otomatis memakai simulator cerdas bawaan berstandar Permendikdasmen No. 13/2025.
+* **Kegagalan AI:** Alur baru `/api/v1` mengembalikan error saat AI tidak siap atau hasil tidak valid; tidak menyimpan hasil simulasi. Endpoint lama `/api/assessment`, `/api/grading`, dan `/api/report` masih memiliki perilaku fallback legacy.
 
 ### Menyiapkan Ollama
 1. Pasang Ollama dari https://ollama.com/download, lalu pastikan server berjalan (`ollama serve`; di Windows/macOS biasanya otomatis jalan di tray).

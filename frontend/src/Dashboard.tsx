@@ -327,7 +327,11 @@ export default function Dashboard() {
           </div>
         </section>
       </div>
-      {isDemo && <DemoNote />}
+      <DemoNote>
+        {isDemo
+          ? undefined
+          : "Terhubung ke backend. Daftar siswa dan profil kelas masih contoh; generasi AI memerlukan ADC atau service account pada backend."}
+      </DemoNote>
     </>
   );
 }

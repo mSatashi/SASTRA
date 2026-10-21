@@ -21,7 +21,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { client, isDemo } from "./client";
+import { assetUrl, client, isDemo } from "./client";
 import {
   approvedFor,
   averageFor,
@@ -172,17 +172,20 @@ export function ContentPage() {
                   ))}
                 </ol>
                 <div className="rubric-box">
-                  <strong>Rubrik penalaran · contoh</strong>
-                  <p>
-                    Ketepatan konsep (0–50) dan penjelasan sebab-akibat (0–50).
-                    Guru perlu menyelaraskan rubrik dengan topik sebelum
-                    asesmen.
+                  <strong>
+                    {isDemo
+                      ? "Rubrik penalaran · contoh"
+                      : "Kunci jawaban & rubrik"}
+                  </strong>
+                  <p className="preserve-lines">
+                    {content.rubric ||
+                      "Ketepatan konsep (0–50) dan penjelasan sebab-akibat (0–50). Guru perlu menyelaraskan rubrik dengan topik sebelum asesmen."}
                   </p>
                 </div>
               </div>
               <div className="button-row">
                 <DownloadButton
-                  text={`${content.title}\n\n${content.objective}\n\n${content.module}\n\n${content.questions.join("\n")}`}
+                  text={`${content.title}\n\n${content.objective}\n\n${content.module}\n\n${content.questions.join("\n")}\n\n${content.rubric || ""}`}
                   filename="sastra-materi.txt"
                 >
                   <ArrowDownToLine size={16} />
@@ -222,6 +225,7 @@ export function AssessmentPage() {
   const [showUpload, setShowUpload] = useState(false),
     [filter, setFilter] = useState("pending"),
     [studentId, setStudentId] = useState("s1"),
+    [contentId, setContentId] = useState(""),
     [file, setFile] = useState<File | null>(null),
     [validation, setValidation] = useState(""),
     [preview, setPreview] = useState("");
@@ -235,6 +239,9 @@ export function AssessmentPage() {
     return () => URL.revokeObjectURL(u);
   }, [file]);
   if (!w) return null;
+  const availableContents = w.contents.filter((c) => c.status === "APPROVED");
+  const selectedContent =
+    availableContents.find((c) => c.id === contentId) || availableContents[0];
   const rows = w.submissions.filter(
     (s) => filter === "all" || s.status === "AWAITING_REVIEW",
   );
@@ -253,9 +260,23 @@ export function AssessmentPage() {
       setValidation("Gunakan JPG, PNG, atau PDF berukuran maksimal 10 MB.");
       return;
     }
+    if (!isDemo && !selectedContent) {
+      setValidation(
+        "Buat dan setujui materi beserta rubriknya sebelum mengunggah jawaban.",
+      );
+      return;
+    }
     const ok = await run(
-      () => client.upload({ file, studentId, title: "Kuis 02 · Fotosintesis" }),
-      "Unggahan demo siap ditinjau.",
+      () =>
+        client.upload({
+          file,
+          studentId,
+          title: isDemo ? "Kuis 02 · Fotosintesis" : selectedContent.title,
+          contentId: selectedContent?.id,
+        }),
+      isDemo
+        ? "Unggahan demo siap ditinjau."
+        : "Hasil evaluasi AI siap ditinjau guru.",
     );
     if (ok) {
       setShowUpload(false);
@@ -309,11 +330,29 @@ export function AssessmentPage() {
               </div>
               <div>
                 <label htmlFor="assessment-upload">Asesmen</label>
-                <input
-                  id="assessment-upload"
-                  value="Kuis 02 · Fotosintesis"
-                  readOnly
-                />
+                {isDemo ? (
+                  <input
+                    id="assessment-upload"
+                    value="Kuis 02 · Fotosintesis"
+                    readOnly
+                  />
+                ) : (
+                  <select
+                    id="assessment-upload"
+                    value={selectedContent?.id || ""}
+                    onChange={(e) => setContentId(e.target.value)}
+                    required
+                  >
+                    {!availableContents.length && (
+                      <option value="">Setujui materi terlebih dahulu</option>
+                    )}
+                    {availableContents.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.title} · v{c.version}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
             <label className="upload-zone" htmlFor="answer-file">
@@ -348,7 +387,9 @@ export function AssessmentPage() {
             <button className="btn primary" disabled={busy}>
               <Upload size={16} />
               {busy
-                ? "Menyiapkan contoh review…"
+                ? isDemo
+                  ? "Menyiapkan contoh review…"
+                  : "Mengevaluasi jawaban…"
                 : isDemo
                   ? "Simulasikan review"
                   : "Kirim untuk dievaluasi"}
@@ -467,11 +508,32 @@ function AssessmentReview({ submission: s }: { submission: Submission }) {
           </p>
         </div>
       </div>
+      {!isDemo && s.assetMimeType?.startsWith("image/") && (
+        <img
+          className="upload-preview"
+          src={assetUrl(s.id)}
+          alt={`Bukti lembar jawaban ${student.name}`}
+        />
+      )}
+      {!isDemo && s.assetMimeType === "application/pdf" && (
+        <a
+          className="text-link"
+          href={assetUrl(s.id)}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Buka bukti jawaban PDF
+        </a>
+      )}
       {items.map((item, n) => (
         <article className="question-review" key={item.question}>
           <div className="question-number">
             SOAL {n + 1}
-            <span>Esai · Penalaran</span>
+            <span>
+              {item.type === "multiple_choice"
+                ? "Pilihan ganda"
+                : "Esai · Penalaran"}
+            </span>
           </div>
           <h3>{item.question}</h3>
           <div className="answer-evidence">

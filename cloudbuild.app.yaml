@@ -1,0 +1,21 @@
+# Combined FastAPI + React image for the Vertex-backed teacher workspace.
+steps:
+  - id: build-sastra-app
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --platform=linux/amd64
+      - --file=Dockerfile
+      - --build-arg=VITE_DATA_MODE=api
+      - --build-arg=VITE_API_URL=/api/v1
+      - --tag=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/sastra-app:${BUILD_ID}
+      - .
+images:
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/sastra-app:${BUILD_ID}
+substitutions:
+  _REGION: asia-southeast2
+  _REPOSITORY: sastra
+serviceAccount: projects/${PROJECT_ID}/serviceAccounts/hackathon-runtime@${PROJECT_ID}.iam.gserviceaccount.com
+options:
+  logging: CLOUD_LOGGING_ONLY
+timeout: 1200s

@@ -5,10 +5,13 @@ FROM node:22-alpine AS frontend-builder
 WORKDIR /app/frontend
 
 COPY frontend/package*.json ./
-RUN npm install
+RUN npm ci --no-audit --no-fund
 
 COPY frontend/ ./
-RUN npm run build
+ARG VITE_DATA_MODE=api
+ARG VITE_API_URL=/api/v1
+ENV VITE_DATA_MODE=${VITE_DATA_MODE} VITE_API_URL=${VITE_API_URL}
+RUN npm run format:check && npm test && npm run build
 
 # ==========================================
 # Stage 2: Production Backend (FastAPI) + Static UI
@@ -28,6 +31,7 @@ RUN pip install --no-cache-dir -r backend/requirements.txt
 
 # Copy backend source
 COPY backend/ ./backend/
+RUN python -m compileall -q backend/app
 COPY AGENTS.md README.md ./
 
 # Copy built frontend assets from stage 1

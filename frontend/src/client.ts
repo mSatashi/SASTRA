@@ -11,6 +11,9 @@ import {
 } from "./domain";
 export const isDemo = import.meta.env.VITE_DATA_MODE !== "api";
 const key = "sastra-demo-v1";
+const apiBase = (import.meta.env.VITE_API_URL ?? "/api/v1").replace(/\/$/, "");
+export const assetUrl = (id: string) =>
+  `${apiBase}/submissions/${encodeURIComponent(id)}/asset`;
 const pause = () => new Promise<void>((r) => setTimeout(r, 550));
 export interface SastraClient {
   load(): Promise<Workspace>;
@@ -124,7 +127,7 @@ class DemoClient implements SastraClient {
   }
 }
 class BackendClient implements SastraClient {
-  private base = (import.meta.env.VITE_API_URL ?? "/api/v1").replace(/\/$/, "");
+  private base = apiBase;
   private async request(path: string, init?: RequestInit) {
     const r = await fetch(`${this.base}${path}`, {
       ...init,
@@ -136,10 +139,14 @@ class BackendClient implements SastraClient {
         ...init?.headers,
       },
     });
-    if (!r.ok)
+    if (!r.ok) {
+      const error = await r.json().catch(() => null);
       throw new Error(
-        `Server gagal merespons (${r.status}). Periksa koneksi dan coba lagi.`,
+        typeof error?.detail === "string"
+          ? error.detail
+          : `Server gagal merespons (${r.status}). Periksa koneksi dan coba lagi.`,
       );
+    }
     return r;
   }
   async load(): Promise<Workspace> {
@@ -178,6 +185,7 @@ class BackendClient implements SastraClient {
     f.set("file", i.file);
     f.set("studentId", i.studentId);
     f.set("title", i.title);
+    if (i.contentId) f.set("contentId", i.contentId);
     return this.mutate("/submissions", f);
   }
   generateReport(studentId: string) {

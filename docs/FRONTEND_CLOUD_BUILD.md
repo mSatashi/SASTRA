@@ -88,7 +88,7 @@ Periksa image di Artifact Registry, lalu gunakan image tersebut untuk membuat se
 
 Frontend tetap mode demo. Untuk integrasi nanti, set `_VITE_DATA_MODE=api` dan `_VITE_API_URL` ke URL HTTPS API SASTRA yang kontraknya sudah disepakati, kemudian build image baru. Nilai Vite tertanam dalam JavaScript saat build; mengubah env Cloud Run saja tidak mengubah URL backend atau mode data. Jangan menaruh API key Gemini atau service-account JSON dalam build arg VITE_*.
 
-Backend perlu mengizinkan origin frontend pada CORS dan menyediakan autentikasi yang sesuai jika cookie credentials digunakan. Kontrak frontend baru belum diselaraskan dengan backend di main; konfigurasi build ini tidak menyelesaikan integrasi tersebut.
+Backend perlu mengizinkan origin frontend pada CORS dan menyediakan autentikasi yang sesuai jika cookie credentials digunakan. Backend `/api/v1` kini tersedia untuk prototipe satu kelas. Untuk build gabungan API + UI dengan same-origin dan Vertex ADC, gunakan `cloudbuild.app.yaml`; lihat [VERTEX_INTEGRATION.md](VERTEX_INTEGRATION.md).
 
 ## Acuan resmi
 

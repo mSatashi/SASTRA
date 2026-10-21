@@ -2,6 +2,10 @@
 
 Prototipe ruang kerja guru: React, TypeScript, Vite, React Router dan Lucide. Default adalah **mode demo dengan data siswa sintetis**. Tidak memerlukan Docker, database, akun, password, atau API key.
 
+Mode API kini tersedia lewat `/api/v1`: lihat [setup Vertex dan backend](../docs/VERTEX_INTEGRATION.md).
+Set `VITE_DATA_MODE=api` sebelum menjalankan/build frontend. Mode ini memerlukan backend
+dan autentikasi AI di server, serta masih memakai profil kelas contoh.
+
 ## Jalankan di komputer teman
 
 Install Node.js 22.12+ atau Node.js 24 LTS serta Git. Di CMD Windows, dari folder yang diinginkan:
@@ -34,30 +38,30 @@ npm run dev
 
 State demo disimpan di localStorage `sastra-demo-v1` pada origin browser ini. Gunakan **Reset demo** untuk mengulang. Jangan masukkan data siswa asli. Profil Bu Nadia, SD Nusantara, kelas IV A dan IPAS adalah konteks contoh tetap, bukan akun terautentikasi atau pemilih kelas.
 
-## Kontrak integrasi backend (usulan, belum terhubung)
+## Kontrak integrasi backend
 
 Salin `.env.example` menjadi `.env.local`, lalu set:
 
 ```dotenv
 VITE_DATA_MODE=api
-VITE_API_URL=http://localhost:8000/api/v1
+VITE_API_URL=/api/v1
 ```
 
 Restart Vite setelah mengubah env. Semua variabel VITE_* tampil dalam bundle klien; **jangan taruh Gemini key/Cloud credential di sini**. Mode API mengirim cookie dengan credentials include dan tidak fallback ke demo ketika server gagal.
 
-`src/client.ts` memisahkan SastraClient, DemoClient dan BackendClient. Kontrak payload/response perlu disepakati dengan tim backend dan OpenAPI mereka sebelum integrasi produksi. Implementasi awal mengharapkan respons GET /dashboard berupa **Workspace lengkap** yang tipenya ada di src/domain.ts: students, submissions, contents, reports, activities, dan schema=1. Setiap mutasi berhasil diikuti GET /dashboard untuk memuat data terbaru.
+`src/client.ts` memisahkan SastraClient, DemoClient dan BackendClient. Backend menyediakan kontrak berikut di `/api/v1`; Vite memproksikan `/api` ke port 8000. GET /dashboard mengembalikan **Workspace lengkap**: students, submissions, contents, reports, activities, dan schema=1. Setiap mutasi berhasil diikuti GET /dashboard untuk memuat data terbaru. Default tetap demo; autentikasi AI berada pada backend.
 
 | Method | Endpoint                          | Payload                                        |
 | ------ | --------------------------------- | ---------------------------------------------- |
 | GET    | /dashboard                        | Workspace lengkap                              |
 | POST   | /assessment-versions/generate     | topic, objective, duration                     |
 | POST   | /assessment-versions/{id}/approve | expectedVersion                                |
-| POST   | /submissions                      | multipart: file, studentId, title              |
+| POST   | /submissions                      | multipart: file, studentId, contentId, title   |
 | POST   | /submissions/{id}/approve-grade   | expectedVersion, gradeItems, identityConfirmed |
 | POST   | /reports/generate                 | studentId                                      |
 | POST   | /report-versions/{id}/finalize    | expectedVersion, narrative                     |
 
-Backend harus menyediakan autentikasi, scope sekolah/kelas, otorisasi, transaksi expectedVersion (409 untuk konflik), validasi file/skor, job asynchronous, penyimpanan file privat, bukti per versi dan integrasi Gemini. JSON frontend tidak menjadi sumber kebenaran produksi. Request sinkron prototipe perlu diganti polling/SSE saat job API tersedia. Dashboard lengkap nantinya dapat dipecah ke endpoint per resource agar data besar tidak dimuat sekaligus.
+Backend menyediakan validasi file/skor, transaksi expectedVersion (409 untuk konflik), bukti asli, riwayat revisi, snapshot laporan dan integrasi Gemini melalui ADC. Mode ini masih prototipe satu kelas, belum memiliki login guru, otorisasi sekolah, job queue atau penyimpanan lintas instance Cloud Run. Gunakan data sintetis. Batas dan setup ada di [panduan Vertex](../docs/VERTEX_INTEGRATION.md).
 
 ## Verifikasi
 

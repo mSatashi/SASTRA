@@ -1,132 +1,128 @@
-import os
-import json
-import base64
+"""Google Gen AI client shared by the existing agents and teacher workspace."""
 import logging
-from typing import Dict, Any, Optional
+from typing import Optional
+
 from ..config import settings
 
 logger = logging.getLogger(__name__)
 
-import os
-import json
-import base64
-import logging
-from typing import Dict, Any, Optional
-from ..config import settings
 
-logger = logging.getLogger(__name__)
+class AIServiceError(RuntimeError):
+    def __init__(self, message: str, status_code: int = 503):
+        super().__init__(message)
+        self.status_code = status_code
+
 
 class GeminiService:
     def __init__(self):
-        self.api_key = settings.GEMINI_API_KEY or os.environ.get("GEMINI_API_KEY", "")
+        self.api_key = settings.GEMINI_API_KEY
         self.model_name = settings.GEMINI_MODEL
         self.project_id = settings.GCP_PROJECT
         self.location = settings.GCP_LOCATION
-        self.mode = None  # "vertex", "api_key", or "simulator"
+        self.auth_mode = settings.GEMINI_AUTH_MODE
+        self.mode = "unavailable"
         self.client = None
-
+        self.last_error = ""
+        self.last_request_succeeded = False
         self._initialize_client()
 
     def _initialize_client(self):
-        """Inisialisasi client: mengutamakan Vertex AI (ADC), lalu API key, atau simulator."""
-        # 1. Coba inisialisasi Vertex AI via ADC (Default GCP / Cloud Run)
-        try:
-            import vertexai
-            from vertexai.generative_models import GenerativeModel
-            
-            vertexai.init(project=self.project_id, location=self.location)
-            self.client = GenerativeModel(self.model_name)
-            self.mode = "vertex"
-            logger.info(f"Gemini berhasil diinisialisasi via Vertex AI (ADC) [Project: {self.project_id}, Region: {self.location}, Model: {self.model_name}]")
-            return
-        except Exception as vertex_err:
-            logger.info(f"Vertex AI via ADC belum aktif atau gagal diinisialisasi: {vertex_err}")
-
-        # 2. Coba pakai API Key jika tersedia
-        if self.api_key:
-            try:
-                import google.generativeai as genai
-                genai.configure(api_key=self.api_key)
-                self.client = genai.GenerativeModel(model_name=self.model_name)
-                self.mode = "api_key"
-                logger.info(f"Gemini API berhasil diinisialisasi dengan API Key [Model: {self.model_name}]")
-                return
-            except Exception as api_err:
-                logger.warning(f"Gagal menginisialisasi Gemini API Key: {api_err}")
-
-        # 3. Fallback: Simulator mode
+        if self.client:
+            self.client.close()
         self.client = None
-        self.mode = "simulator"
-        logger.info("Mengaktifkan mode demonstrasi cerdas bawaan (simulator).")
+        self.mode = "unavailable"
+        self.last_request_succeeded = False
+        try:
+            from google import genai
+            from google.genai import types
+
+            options = types.HttpOptions(api_version="v1", timeout=settings.GEMINI_TIMEOUT_MS)
+            if self.auth_mode == "vertex":
+                import google.auth
+                credentials, _ = google.auth.default(
+                    scopes=["https://www.googleapis.com/auth/cloud-platform"]
+                )
+                self.client = genai.Client(
+                    vertexai=True, project=self.project_id, location=self.location,
+                    credentials=credentials, http_options=options,
+                )
+                self.mode = "vertex"
+            elif self.auth_mode == "api_key" and self.api_key:
+                self.client = genai.Client(
+                    vertexai=False, api_key=self.api_key, http_options=options,
+                )
+                self.mode = "api_key"
+            else:
+                raise ValueError("Invalid authentication mode or missing key")
+            self.last_error = ""
+        except Exception as exc:
+            logger.warning("Gemini initialization unavailable (%s)", type(exc).__name__)
+            self.last_error = (
+                "Autentikasi Gemini belum siap. Untuk Vertex, siapkan ADC pada mesin "
+                "backend atau gunakan service account Cloud Run yang memiliki akses model."
+            )
 
     def update_api_key(self, api_key: str):
-        """Memperbarui API Key secara realtime dari frontend settings."""
+        # Explicit legacy setting; never silently switch away from Vertex after an error.
         self.api_key = api_key.strip()
-        if self.api_key:
-            try:
-                import google.generativeai as genai
-                genai.configure(api_key=self.api_key)
-                self.client = genai.GenerativeModel(model_name=self.model_name)
-                self.mode = "api_key"
-                return True
-            except Exception as e:
-                logger.error(f"Error update API key: {e}")
-                return False
-        # Kembalikan ke re-init (akan coba Vertex AI kembali)
+        self.auth_mode = "api_key" if self.api_key else "vertex"
         self._initialize_client()
-        return True
+        return self.is_ready
 
     @property
     def is_ready(self) -> bool:
+        # A configured client is not proof of a successful model request.
         return self.client is not None
 
-    def generate_text(self, prompt: str, system_instruction: Optional[str] = None, json_mode: bool = True) -> str:
-        if self.client:
-            try:
-                full_prompt = prompt
-                if system_instruction:
-                    full_prompt = f"System Instruction:\n{system_instruction}\n\nUser Request:\n{prompt}"
-                
-                response = self.client.generate_content(full_prompt)
-                return response.text
-            except Exception as e:
-                logger.error(f"Error pada Gemini generate_text ({self.mode}): {e}")
-        return ""
+    def _generate(self, contents, system_instruction, json_mode):
+        if not self.client:
+            self._initialize_client()
+        if not self.client:
+            raise AIServiceError(self.last_error)
+        from google.genai import types
 
-    def analyze_image_and_text(
-        self,
-        image_bytes: bytes,
-        prompt: str,
-        mime_type: str = "image/jpeg",
-        system_instruction: Optional[str] = None,
-    ) -> str:
-        if self.client:
-            try:
-<<<<<<< HEAD
-                if self.mode == "vertex":
-                    from vertexai.generative_models import Part
-                    image_part = Part.from_data(data=image_bytes, mime_type=mime_type)
-                    response = self.client.generate_content([image_part, prompt])
-                    return response.text
-                elif self.mode == "api_key":
-                    image_part = {
-                        "mime_type": mime_type,
-                        "data": image_bytes
-                    }
-                    response = self.client.generate_content([prompt, image_part])
-                    return response.text
-=======
-                if system_instruction:
-                    prompt = f"System Instruction:\n{system_instruction}\n\nUser Request:\n{prompt}"
-                image_part = {
-                    "mime_type": mime_type,
-                    "data": image_bytes
-                }
-                response = self.client.generate_content([prompt, image_part])
-                return response.text
->>>>>>> 41e4345f04bd5d76398125bf8cebc2b9897709ce
-            except Exception as e:
-                logger.error(f"Error pada Gemini Vision analyze ({self.mode}): {e}")
-        return ""
+        try:
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    response_mime_type="application/json" if json_mode else "text/plain",
+                    max_output_tokens=8192,
+                ),
+            )
+            text = response.text
+            if not text or not text.strip():
+                raise AIServiceError("Model tidak mengembalikan jawaban. Coba ulangi.", 502)
+            self.last_request_succeeded = True
+            self.last_error = ""
+            return text
+        except AIServiceError:
+            self.last_request_succeeded = False
+            raise
+        except Exception as exc:
+            self.last_request_succeeded = False
+            code = getattr(exc, "code", None)
+            status = 429 if code == 429 else 503 if code in (401, 403) else 502
+            self.last_error = (
+                f"Panggilan Gemini gagal (kode {code or 'transport'}). "
+                "Periksa ADC/service account, akses model, kuota, dan lokasi backend."
+            )
+            logger.warning("Gemini request failed (%s, code=%s)", type(exc).__name__, code)
+            raise AIServiceError(self.last_error, status) from exc
+
+    def generate_text(self, prompt: str, system_instruction: Optional[str] = None,
+                      json_mode: bool = True) -> str:
+        return self._generate(prompt, system_instruction, json_mode)
+
+    def analyze_image_and_text(self, image_bytes: bytes, prompt: str,
+                               mime_type: str = "image/jpeg",
+                               system_instruction: Optional[str] = None) -> str:
+        from google.genai import types
+        return self._generate(
+            [types.Part.from_bytes(data=image_bytes, mime_type=mime_type), prompt],
+            system_instruction, True,
+        )
+
 
 gemini_service = GeminiService()

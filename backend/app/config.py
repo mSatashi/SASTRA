@@ -12,11 +12,11 @@ class Settings:
     
     # Gemini & GCP Settings
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
-<<<<<<< HEAD
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+    GEMINI_AUTH_MODE: str = os.getenv("GEMINI_AUTH_MODE", "vertex")
     GCP_PROJECT: str = os.getenv("GCP_PROJECT", os.getenv("GOOGLE_CLOUD_PROJECT", "hackathon-primestep-02"))
-    GCP_LOCATION: str = os.getenv("GCP_LOCATION", "us-central1")
-=======
+    GCP_LOCATION: str = os.getenv("GCP_LOCATION", os.getenv("GOOGLE_CLOUD_LOCATION", "global"))
+    GEMINI_TIMEOUT_MS: int = int(os.getenv("GEMINI_TIMEOUT_MS", "120000"))
 
     # Provider LLM aktif: "gemini" (cloud) atau "ollama" (lokal)
     LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "gemini")
@@ -30,13 +30,13 @@ class Settings:
     OLLAMA_TEMPERATURE: float = float(os.getenv("OLLAMA_TEMPERATURE", "0.4"))
     OLLAMA_NUM_CTX: int = int(os.getenv("OLLAMA_NUM_CTX", "8192"))
     OLLAMA_KEEP_ALIVE: str = os.getenv("OLLAMA_KEEP_ALIVE", "10m")
->>>>>>> 41e4345f04bd5d76398125bf8cebc2b9897709ce
     
     # Storage Paths
     DATA_DIR: Path = BASE_DIR / "data"
     UPLOAD_DIR: Path = BASE_DIR / "data" / "uploads"
     SAMPLES_DIR: Path = BASE_DIR / "data" / "samples"
     DB_PATH: Path = BASE_DIR / "data" / "sastra.json"
+    WORKSPACE_DB: Path = Path(os.getenv("SASTRA_WORKSPACE_DB", str(DATA_DIR / "workspace.sqlite3")))
     
     # Ensure directories exist
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
