@@ -118,6 +118,7 @@ class OllamaService:
         system_instruction: Optional[str] = None,
         images: Optional[List[str]] = None,
         json_mode: bool = True,
+        response_schema=None,
     ) -> str:
         messages: List[Dict[str, Any]] = []
         if system_instruction:
@@ -139,7 +140,7 @@ class OllamaService:
             },
         }
         if json_mode:
-            payload["format"] = "json"
+            payload["format"] = response_schema if response_schema is not None else "json"
 
         try:
             res = requests.post(f"{self.base_url}/api/chat", json=payload, timeout=self.timeout)
@@ -163,8 +164,9 @@ class OllamaService:
         prompt: str,
         system_instruction: Optional[str] = None,
         json_mode: bool = True,
+        response_schema=None,
     ) -> str:
-        return self._chat(self.model_name, prompt, system_instruction, json_mode=json_mode)
+        return self._chat(self.model_name, prompt, system_instruction, json_mode=json_mode, response_schema=response_schema)
 
     def analyze_image_and_text(
         self,
@@ -172,6 +174,7 @@ class OllamaService:
         prompt: str,
         mime_type: str = "image/jpeg",
         system_instruction: Optional[str] = None,
+        response_schema=None,
     ) -> str:
         if not mime_type.startswith("image/"):
             # Ollama hanya menerima gambar (bukan PDF) -> agent akan memakai fallback.
@@ -185,6 +188,7 @@ class OllamaService:
             system_instruction,
             images=[image_b64],
             json_mode=True,
+            response_schema=response_schema,
         )
 
 

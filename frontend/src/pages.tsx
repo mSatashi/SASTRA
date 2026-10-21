@@ -21,12 +21,16 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { client, isDemo } from "./client";
+import { assetUrl, client, isDemo } from "./client";
 import {
   approvedFor,
   averageFor,
   percentage,
   snapshotFor,
+  type EvidenceScope,
+  type AnswerKeyItem,
+  type ExternalContentInput,
+  matchesEvidence,
   type Report,
   type Submission,
 } from "./domain";
@@ -42,19 +46,59 @@ import {
   PageHeading,
   SectionTitle,
 } from "./ui";
+import {
+  EvidenceFilters,
+  ExternalQuestions,
+  emptyQuestion,
+} from "./AssessmentFields";
+import { PresentationPanel } from "./PresentationPanel";
 export function ContentPage() {
   const { data: w, busy, run } = useWorkspace();
   const [topic, setTopic] = useState(""),
     [objective, setObjective] = useState(""),
+    [subject, setSubject] = useState("IPAS"),
+    [assessmentType, setAssessmentType] = useState<
+      "TUGAS" | "KUIS" | "UTS" | "UAS"
+    >("KUIS"),
+    [semester, setSemester] = useState<"GANJIL" | "GENAP">("GANJIL"),
+    [materialsText, setMaterialsText] = useState(""),
+    [source, setSource] = useState("AI"),
+    [answerKey, setAnswerKey] = useState<AnswerKeyItem[]>([emptyQuestion()]),
+    [weight, setWeight] = useState(1),
     [duration, setDuration] = useState(40),
     [selected, setSelected] = useState("");
   if (!w) return null;
   const content = w.contents.find((c) => c.id === selected) || w.contents[0];
   async function submit(e: FormEvent) {
     e.preventDefault();
+    const input: ExternalContentInput = {
+      topic,
+      objective,
+      duration,
+      className: "IV A",
+      weight,
+      module: objective,
+      answerKey: answerKey.map((q) => ({
+        ...q,
+        options:
+          q.type === "essay"
+            ? []
+            : q.options.map((o) => o.trim()).filter(Boolean),
+      })),
+      subject,
+      assessmentType,
+      semester,
+      materials: materialsText
+        .split(",")
+        .map((material) => material.trim())
+        .filter(Boolean),
+    };
     if (
       await run(
-        () => client.generateContent({ topic, objective, duration }),
+        () =>
+          source === "EXTERNAL"
+            ? client.importContent(input)
+            : client.generateContent(input),
         "Draf materi siap ditinjau.",
       )
     )
@@ -80,6 +124,15 @@ export function ContentPage() {
             subtitle="Mulai dengan tujuan yang ingin dicapai."
           />
           <form onSubmit={submit}>
+            <label htmlFor="assessment-source">Sumber asesmen</label>
+            <select
+              id="assessment-source"
+              value={source}
+              onChange={(e) => setSource(e.target.value)}
+            >
+              <option value="AI">Buat dengan ContentAgent</option>
+              <option value="EXTERNAL">Soal dari luar SASTRA</option>
+            </select>
             <label htmlFor="topic">Topik pembelajaran</label>
             <input
               id="topic"
@@ -92,13 +145,71 @@ export function ContentPage() {
             <div className="form-row">
               <div>
                 <label htmlFor="subject">Mata pelajaran</label>
-                <input id="subject" value="IPAS" readOnly />
+                <select
+                  id="subject"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                >
+                  {[
+                    "IPAS",
+                    "Matematika",
+                    "Bahasa Indonesia",
+                    "Pendidikan Pancasila",
+                    "Bahasa Inggris",
+                    "Seni Budaya",
+                    "PJOK",
+                    "Informatika",
+                  ].map((name) => (
+                    <option key={name}>{name}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label htmlFor="phase">Fase / kelas</label>
                 <input id="phase" value="Fase B · Kelas IV" readOnly />
               </div>
             </div>
+            <div className="form-row">
+              <div>
+                <label htmlFor="assessment-type">Jenis asesmen</label>
+                <select
+                  id="assessment-type"
+                  value={assessmentType}
+                  onChange={(e) =>
+                    setAssessmentType(e.target.value as typeof assessmentType)
+                  }
+                >
+                  <option value="TUGAS">Tugas</option>
+                  <option value="KUIS">Kuis</option>
+                  <option value="UTS">UTS</option>
+                  <option value="UAS">UAS</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="semester">Semester</label>
+                <select
+                  id="semester"
+                  value={semester}
+                  onChange={(e) =>
+                    setSemester(e.target.value as typeof semester)
+                  }
+                >
+                  <option value="GANJIL">Ganjil</option>
+                  <option value="GENAP">Genap</option>
+                </select>
+              </div>
+            </div>
+            <label htmlFor="assessment-materials">Materi yang diujikan</label>
+            <input
+              id="assessment-materials"
+              value={materialsText}
+              onChange={(e) => setMaterialsText(e.target.value)}
+              placeholder="Contoh: Fotosintesis, bagian tumbuhan, perubahan energi"
+            />
+            <small>
+              Pisahkan beberapa materi dengan koma. Satu asesmen bisa mencakup
+              beberapa materi.
+            </small>
             <label htmlFor="objective">Tujuan pembelajaran</label>
             <textarea
               id="objective"
@@ -119,6 +230,24 @@ export function ContentPage() {
               <option value={80}>80 menit · 2 pertemuan</option>
               <option value={120}>120 menit · 3 pertemuan</option>
             </select>
+            <label htmlFor="assessment-weight">Bobot relatif asesmen</label>
+            <input
+              id="assessment-weight"
+              type="number"
+              min="0.01"
+              max="100"
+              step="0.01"
+              required
+              value={weight || ""}
+              onChange={(e) => setWeight(Number(e.target.value))}
+            />
+            <small>
+              Nilai 1 berarti bobot setara. Bobot 2 dihitung dua kali bobot 1;
+              jenis asesmen tidak menentukan bobot otomatis.
+            </small>
+            {source === "EXTERNAL" && (
+              <ExternalQuestions value={answerKey} onChange={setAnswerKey} />
+            )}
             <div className="principles">
               <span>Mindful</span>
               <span>Meaningful</span>
@@ -126,7 +255,11 @@ export function ContentPage() {
             </div>
             <button className="btn primary full" disabled={busy}>
               <Sparkles size={17} />
-              {busy ? "Menyiapkan draf…" : "Buat draf materi & kuis"}
+              {busy
+                ? "Menyiapkan draf…"
+                : source === "EXTERNAL"
+                  ? "Simpan draf asesmen luar"
+                  : "Buat draf materi & kuis"}
             </button>
           </form>
         </section>
@@ -162,6 +295,14 @@ export function ContentPage() {
                   <span>{content.duration} MENIT</span>
                 </div>
                 <h2>{content.title}</h2>
+                <p>
+                  {content.subject || "IPAS"} ·{" "}
+                  {content.assessmentType || "KUIS"} ·{" "}
+                  {content.semester || "GANJIL"} · bobot {content.weight ?? 1}
+                </p>
+                <p>
+                  Materi: {(content.materials || [content.title]).join(", ")}
+                </p>
                 <p className="document-objective">{content.objective}</p>
                 <h3>Amati. Temukan. Ceritakan.</h3>
                 <p className="preserve-lines">{content.module}</p>
@@ -172,17 +313,24 @@ export function ContentPage() {
                   ))}
                 </ol>
                 <div className="rubric-box">
-                  <strong>Rubrik penalaran · contoh</strong>
-                  <p>
-                    Ketepatan konsep (0–50) dan penjelasan sebab-akibat (0–50).
-                    Guru perlu menyelaraskan rubrik dengan topik sebelum
-                    asesmen.
+                  <strong>
+                    {isDemo
+                      ? "Rubrik penalaran · contoh"
+                      : "Kunci jawaban & rubrik"}
+                  </strong>
+                  <p className="preserve-lines">
+                    {content.rubric ||
+                      "Ketepatan konsep (0–50) dan penjelasan sebab-akibat (0–50). Guru perlu menyelaraskan rubrik dengan topik sebelum asesmen."}
                   </p>
                 </div>
               </div>
+              <PresentationPanel
+                key={`${content.id}:${content.version}`}
+                content={content}
+              />
               <div className="button-row">
                 <DownloadButton
-                  text={`${content.title}\n\n${content.objective}\n\n${content.module}\n\n${content.questions.join("\n")}`}
+                  text={`${content.title}\n\n${content.objective}\n\n${content.module}\n\n${content.questions.join("\n")}\n\n${content.rubric || ""}`}
                   filename="sastra-materi.txt"
                 >
                   <ArrowDownToLine size={16} />
@@ -222,6 +370,10 @@ export function AssessmentPage() {
   const [showUpload, setShowUpload] = useState(false),
     [filter, setFilter] = useState("pending"),
     [studentId, setStudentId] = useState("s1"),
+    [contentId, setContentId] = useState(""),
+    [subjectFilter, setSubjectFilter] = useState(""),
+    [typeFilter, setTypeFilter] = useState(""),
+    [semesterFilter, setSemesterFilter] = useState(""),
     [file, setFile] = useState<File | null>(null),
     [validation, setValidation] = useState(""),
     [preview, setPreview] = useState("");
@@ -235,6 +387,14 @@ export function AssessmentPage() {
     return () => URL.revokeObjectURL(u);
   }, [file]);
   if (!w) return null;
+  const availableContents = w.contents.filter((c) => c.status === "APPROVED");
+  const filteredContents = availableContents.filter(
+    (c) =>
+      (!subjectFilter || (c.subject || "IPAS") === subjectFilter) &&
+      (!typeFilter || (c.assessmentType || "KUIS") === typeFilter) &&
+      (!semesterFilter || (c.semester || "GANJIL") === semesterFilter),
+  );
+  const selectedContent = filteredContents.find((c) => c.id === contentId);
   const rows = w.submissions.filter(
     (s) => filter === "all" || s.status === "AWAITING_REVIEW",
   );
@@ -253,9 +413,25 @@ export function AssessmentPage() {
       setValidation("Gunakan JPG, PNG, atau PDF berukuran maksimal 10 MB.");
       return;
     }
+    if (!isDemo && !selectedContent) {
+      setValidation(
+        availableContents.length
+          ? "Pilih asesmen yang sesuai dengan soal pada lembar jawaban."
+          : "Buat dan setujui materi beserta rubriknya sebelum mengunggah jawaban.",
+      );
+      return;
+    }
     const ok = await run(
-      () => client.upload({ file, studentId, title: "Kuis 02 · Fotosintesis" }),
-      "Unggahan demo siap ditinjau.",
+      () =>
+        client.upload({
+          file,
+          studentId,
+          title: isDemo ? "Kuis 02 · Fotosintesis" : selectedContent!.title,
+          contentId: selectedContent?.id,
+        }),
+      isDemo
+        ? "Unggahan demo siap ditinjau."
+        : "Hasil evaluasi AI siap ditinjau guru.",
     );
     if (ok) {
       setShowUpload(false);
@@ -309,13 +485,138 @@ export function AssessmentPage() {
               </div>
               <div>
                 <label htmlFor="assessment-upload">Asesmen</label>
-                <input
-                  id="assessment-upload"
-                  value="Kuis 02 · Fotosintesis"
-                  readOnly
-                />
+                {isDemo ? (
+                  <input
+                    id="assessment-upload"
+                    value="Kuis 02 · Fotosintesis"
+                    readOnly
+                  />
+                ) : (
+                  <select
+                    id="assessment-upload"
+                    value={selectedContent?.id || ""}
+                    onChange={(e) => setContentId(e.target.value)}
+                    required
+                  >
+                    <option value="" disabled>
+                      {filteredContents.length
+                        ? "Pilih asesmen yang sesuai dengan lembar jawaban"
+                        : "Tidak ada asesmen disetujui sesuai pilihan"}
+                    </option>
+                    {filteredContents.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.assessmentType || "KUIS"} · {c.subject || "IPAS"} ·{" "}
+                        {c.title} · v{c.version}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {!isDemo && (
+                  <p>
+                    Koreksi memakai soal, kunci, dan rubrik asesmen ini.
+                    Pastikan mata pelajaran serta materinya sesuai dengan file
+                    unggahan.
+                  </p>
+                )}
               </div>
             </div>
+            {!isDemo && (
+              <div className="form-row">
+                <div>
+                  <label htmlFor="subject-filter">Mata pelajaran</label>
+                  <select
+                    id="subject-filter"
+                    value={subjectFilter}
+                    onChange={(e) => {
+                      setSubjectFilter(e.target.value);
+                      setContentId("");
+                    }}
+                  >
+                    <option value="">Semua mata pelajaran</option>
+                    {[
+                      ...new Set(
+                        availableContents.map((c) => c.subject || "IPAS"),
+                      ),
+                    ].map((name) => (
+                      <option key={name}>{name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="type-filter">Jenis asesmen</label>
+                  <select
+                    id="type-filter"
+                    value={typeFilter}
+                    onChange={(e) => {
+                      setTypeFilter(e.target.value);
+                      setContentId("");
+                    }}
+                  >
+                    <option value="">Semua jenis</option>
+                    <option value="TUGAS">Tugas</option>
+                    <option value="KUIS">Kuis</option>
+                    <option value="UTS">UTS</option>
+                    <option value="UAS">UAS</option>
+                  </select>
+                </div>
+              </div>
+            )}
+            <div className="form-row">
+              <div>
+                <label htmlFor="vision-class">Kelas</label>
+                <select id="vision-class">
+                  <option>IV A</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="vision-semester">Semester</label>
+                <select
+                  id="vision-semester"
+                  value={semesterFilter}
+                  onChange={(e) => {
+                    setSemesterFilter(e.target.value);
+                    setContentId("");
+                  }}
+                >
+                  <option value="">Semua semester</option>
+                  <option value="GANJIL">Ganjil</option>
+                  <option value="GENAP">Genap</option>
+                </select>
+              </div>
+            </div>
+            {!isDemo && !availableContents.length && (
+              <p role="status">
+                Buat atau masukkan asesmen dari luar di{" "}
+                <Link to="/content">Materi & kuis</Link>, lalu setujui soal,
+                kunci dan rubriknya.
+              </p>
+            )}
+            {!isDemo && selectedContent && (
+              <details className="rubric-box">
+                <summary>
+                  Tinjau soal, kunci & rubrik · v{selectedContent.version}
+                </summary>
+                <ol>
+                  {selectedContent.questions.map((q, n) => (
+                    <li key={n} className="preserve-lines">
+                      {q}
+                    </li>
+                  ))}
+                </ol>
+                <p className="preserve-lines">{selectedContent.rubric}</p>
+                <p>Bobot relatif: {selectedContent.weight ?? 1}</p>
+              </details>
+            )}
+            {!isDemo && selectedContent && (
+              <small>
+                Materi:{" "}
+                {(selectedContent.materials || [selectedContent.title]).join(
+                  ", ",
+                )}{" "}
+                · Semester{" "}
+                {(selectedContent.semester || "GANJIL").toLowerCase()}
+              </small>
+            )}
             <label className="upload-zone" htmlFor="answer-file">
               <ImagePlus size={27} />
               <strong>
@@ -348,7 +649,9 @@ export function AssessmentPage() {
             <button className="btn primary" disabled={busy}>
               <Upload size={16} />
               {busy
-                ? "Menyiapkan contoh review…"
+                ? isDemo
+                  ? "Menyiapkan contoh review…"
+                  : "Mengevaluasi jawaban…"
                 : isDemo
                   ? "Simulasikan review"
                   : "Kirim untuk dievaluasi"}
@@ -448,14 +751,28 @@ function AssessmentReview({ submission: s }: { submission: Submission }) {
           <div>
             <h2>{student.name}</h2>
             <p>
-              {s.title} · versi {s.version}
+              {s.assessmentType || "KUIS"} · {s.subject || "IPAS"} · {s.title} ·
+              versi {s.version}
             </p>
+            {s.materials?.length ? (
+              <p>
+                Semester {(s.semester || "GANJIL").toLowerCase()} · Materi:{" "}
+                {s.materials.join(", ")} · versi asesmen{" "}
+                {s.contentVersion ?? "—"} · bobot {s.weight ?? 1}
+              </p>
+            ) : null}
           </div>
         </div>
         <Badge tone={approved ? "green" : "amber"}>
           {approved ? "Nilai disetujui" : "Menunggu guru"}
         </Badge>
       </div>
+      {s.assessmentMatch === "UNCERTAIN" && (
+        <p className="notice warning" role="status">
+          AI belum dapat memastikan kecocokan lembar jawaban dengan asesmen.
+          Periksa soal, transkripsi, dan rubrik sebelum menyetujui nilai.
+        </p>
+      )}
       <div className="evidence-banner">
         <ScanLine size={21} />
         <div>
@@ -467,11 +784,32 @@ function AssessmentReview({ submission: s }: { submission: Submission }) {
           </p>
         </div>
       </div>
+      {!isDemo && s.assetMimeType?.startsWith("image/") && (
+        <img
+          className="upload-preview"
+          src={assetUrl(s.id)}
+          alt={`Bukti lembar jawaban ${student.name}`}
+        />
+      )}
+      {!isDemo && s.assetMimeType === "application/pdf" && (
+        <a
+          className="text-link"
+          href={assetUrl(s.id)}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Buka bukti jawaban PDF
+        </a>
+      )}
       {items.map((item, n) => (
         <article className="question-review" key={item.question}>
           <div className="question-number">
             SOAL {n + 1}
-            <span>Esai · Penalaran</span>
+            <span>
+              {item.type === "multiple_choice"
+                ? "Pilihan ganda"
+                : "Esai · Penalaran"}
+            </span>
           </div>
           <h3>{item.question}</h3>
           <div className="answer-evidence">
@@ -617,8 +955,13 @@ function AssessmentReview({ submission: s }: { submission: Submission }) {
 export function StudentsPage() {
   const { data: w } = useWorkspace();
   const [query, setQuery] = useState(""),
-    [selected, setSelected] = useState("");
+    [selected, setSelected] = useState(""),
+    [scope, setScope] = useState<EvidenceScope>({});
   if (!w) return null;
+  const filtered = {
+    ...w,
+    submissions: w.submissions.filter((s) => matchesEvidence(s, scope)),
+  };
   const students = w.students.filter((s) =>
     s.name.toLocaleLowerCase("id").includes(query.toLocaleLowerCase("id")),
   );
@@ -628,7 +971,7 @@ export function StudentsPage() {
     w.students
       .map(
         (s) =>
-          `${s.name},${approvedFor(w, s.id).length},${averageFor(w, s.id) ?? ""}`,
+          `${s.name},${approvedFor(filtered, s.id).length},${averageFor(filtered, s.id) ?? ""}`,
       )
       .join("\n");
   return (
@@ -650,7 +993,7 @@ export function StudentsPage() {
             <h2>
               Kelas IV A <Badge tone="green">{w.students.length} siswa</Badge>
             </h2>
-            <p>IPAS · Semester ganjil 2026/2027</p>
+            <p>Rata-rata memakai bobot relatif yang ditentukan guru.</p>
           </div>
           <div className="search-field">
             <Search size={17} />
@@ -665,6 +1008,12 @@ export function StudentsPage() {
             />
           </div>
         </div>
+        <EvidenceFilters
+          prefix="gradebook"
+          records={w.submissions.filter((s) => s.status === "APPROVED")}
+          value={scope}
+          onChange={setScope}
+        />
         <div className="table-scroll">
           <table>
             <thead>
@@ -680,7 +1029,7 @@ export function StudentsPage() {
             </thead>
             <tbody>
               {students.map((s) => {
-                const avg = averageFor(w, s.id);
+                const avg = averageFor(filtered, s.id);
                 return (
                   <tr key={s.id}>
                     <td>
@@ -689,7 +1038,7 @@ export function StudentsPage() {
                         <strong>{s.name}</strong>
                       </div>
                     </td>
-                    <td>{approvedFor(w, s.id).length} asesmen</td>
+                    <td>{approvedFor(filtered, s.id).length} asesmen</td>
                     <td>
                       <strong className="table-score">{avg ?? "—"}</strong>
                       <span className="muted"> /100</span>
@@ -747,7 +1096,7 @@ export function StudentsPage() {
             title={`Riwayat ${chosen.name}`}
             subtitle="Telusuri sumber nilai sebelum menyusun laporan."
           />
-          {approvedFor(w, chosen.id).map((s) => (
+          {approvedFor(filtered, chosen.id).map((s) => (
             <div className="history-row" key={s.id}>
               <span className="file-icon">
                 <FileCheck2 size={20} />
@@ -755,7 +1104,11 @@ export function StudentsPage() {
               <div>
                 <strong>{s.title}</strong>
                 <p>
-                  {dateLabel(s.date)} · versi {s.version}
+                  {dateLabel(s.date)} · {s.subject || "IPAS"} ·{" "}
+                  {s.assessmentType || "KUIS"} · {s.semester || "GANJIL"} ·
+                  bobot {s.weight ?? 1} · versi {s.version}
+                  <br />
+                  {(s.materials || [s.title]).join(", ")}
                 </p>
               </div>
               <strong>{percentage(s.items)}/100</strong>
@@ -777,7 +1130,8 @@ export function ReportsPage() {
   const { data: w, busy, run } = useWorkspace();
   const [params] = useSearchParams();
   const [student, setStudent] = useState(params.get("student") || "s1"),
-    [selected, setSelected] = useState("");
+    [selected, setSelected] = useState(""),
+    [scope, setScope] = useState<EvidenceScope>({});
   if (!w) return null;
   const r = w.reports.find((r) => r.id === selected) || w.reports[0];
   return (
@@ -793,6 +1147,19 @@ export function ReportsPage() {
           analisis kompetensi atau generasi AI.
         </DemoNote>
       )}
+      <section className="panel">
+        <h2>Cakupan laporan · Kelas IV A</h2>
+        <EvidenceFilters
+          prefix="report"
+          records={w.submissions.filter((s) => s.status === "APPROVED")}
+          value={scope}
+          onChange={setScope}
+        />
+        <p>
+          Filter materi memilih asesmen yang mencakup materi tersebut; rata-rata
+          tetap nilai keseluruhan asesmen.
+        </p>
+      </section>
       <section className="panel report-generator">
         <div>
           <span className="report-generate-icon">
@@ -808,7 +1175,7 @@ export function ReportsPage() {
             e.preventDefault();
             if (
               await run(
-                () => client.generateReport(student),
+                () => client.generateReport(student, scope),
                 "Draf laporan siap ditinjau.",
               )
             )
@@ -831,7 +1198,7 @@ export function ReportsPage() {
           </select>
           <button
             className="btn primary"
-            disabled={busy || !approvedFor(w, student).length}
+            disabled={busy || !approvedFor(w, student, scope).length}
           >
             <Sparkles size={16} />
             {busy ? "Menyiapkan draf…" : "Buat draf"}
@@ -902,7 +1269,7 @@ function ReportEditor({ report: r }: { report: Report }) {
     [reviewed, setReviewed] = useState(false);
   if (!w) return null;
   const s = w.students.find((s) => s.id === r.studentId)!;
-  const changed = r.snapshot !== snapshotFor(w, r.studentId);
+  const changed = r.snapshot !== snapshotFor(w, r.studentId, r.scope);
   return (
     <section className="panel report-document">
       <div className="report-doc-header">
@@ -916,7 +1283,12 @@ function ReportEditor({ report: r }: { report: Report }) {
         </Badge>
       </div>
       <h2>{s.name}</h2>
-      <p className="muted">IPAS · Kelas IV A · Semester ganjil 2026/2027</p>
+      <p className="muted">
+        Kelas IV A · {r.scope?.subject || "Semua mapel"} ·{" "}
+        {r.scope?.semester || "Semua semester"} ·{" "}
+        {r.scope?.assessmentType || "Semua jenis"}{" "}
+        {r.scope?.material ? `· ${r.scope.material}` : ""}
+      </p>
       <div className="report-source">
         <span>
           Rata-rata pada versi sumber <strong>{r.average}/100</strong>
@@ -980,7 +1352,7 @@ function ReportEditor({ report: r }: { report: Report }) {
       )}
       {r.status === "FINAL" && (
         <DownloadButton
-          text={`SASTRA — Laporan perkembangan\n${s.name} | Kelas IV A | IPAS\nRata-rata: ${r.average}\n\n${r.narrative}\n\nVersi laporan: ${r.version}\nSumber: ${r.snapshot}`}
+          text={`SASTRA — Laporan perkembangan\n${s.name} | Kelas IV A | ${r.scope?.subject || "Semua mapel"} | ${r.scope?.semester || "Semua semester"}\nRata-rata: ${r.average}\n\n${r.narrative}\n\nVersi laporan: ${r.version}\nSumber: ${r.snapshot}`}
           filename={`laporan-${s.name.toLowerCase().replaceAll(" ", "-")}.txt`}
         >
           <ArrowDownToLine size={16} />

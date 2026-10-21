@@ -311,8 +311,8 @@ export default function App() {
             <li>
               <strong>Periksa jawaban siswa.</strong>
               <p>
-                Tinjau transkripsi contoh, konfirmasi identitas, sesuaikan skor
-                dan setujui.
+                Tinjau transkripsi dan bukti jawaban, konfirmasi identitas,
+                sesuaikan skor dan setujui.
               </p>
             </li>
             <li>
@@ -324,8 +324,9 @@ export default function App() {
             </li>
           </ol>
           <p className="muted">
-            Demo memakai profil dan data sintetis. Belum ada login produksi,
-            OCR, atau panggilan Gemini.
+            {isDemo
+              ? "Demo memakai profil dan data sintetis. Belum ada OCR atau panggilan Gemini pada mode demo."
+              : "Mode API memakai backend untuk generasi dan penyimpanan. Profil kelas masih contoh; gunakan data sintetis sampai autentikasi guru dan penyimpanan produksi tersedia."}
           </p>
           <button className="btn primary" onClick={() => setHelp(false)}>
             Mengerti <CheckCircle2 size={16} />

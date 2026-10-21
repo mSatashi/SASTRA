@@ -5,14 +5,36 @@ import {
   generateReport,
   makeFixture,
   type ContentInput,
+  type ExternalContentInput,
+  type EvidenceScope,
   type GradeItem,
   type UploadInput,
   type Workspace,
 } from "./domain";
 export const isDemo = import.meta.env.VITE_DATA_MODE !== "api";
 const key = "sastra-demo-v1";
+const apiBase = (import.meta.env.VITE_API_URL ?? "/api/v1").replace(/\/$/, "");
+export const assetUrl = (id: string) =>
+  `${apiBase}/submissions/${encodeURIComponent(id)}/asset`;
 const pause = () => new Promise<void>((r) => setTimeout(r, 550));
+export type PresentationDraft = {
+  id: string;
+  contentId: string;
+  sourceVersion: number;
+  title: string;
+  slideCount: number;
+  createdAt: string;
+  status: "DRAFT";
+  slides: { title: string; bullets: string[]; notes: string }[];
+};
 export interface SastraClient {
+  listPresentations(contentId: string): Promise<PresentationDraft[]>;
+  generatePresentation(
+    contentId: string,
+    version: number,
+    count: number,
+  ): Promise<PresentationDraft>;
+  downloadPresentation(id: string): Promise<Blob>;
   load(): Promise<Workspace>;
   approveGrade(
     id: string,
@@ -21,9 +43,10 @@ export interface SastraClient {
     confirmed: boolean,
   ): Promise<Workspace>;
   generateContent(input: ContentInput): Promise<Workspace>;
+  importContent(input: ExternalContentInput): Promise<Workspace>;
   approveContent(id: string, version: number): Promise<Workspace>;
   upload(input: UploadInput): Promise<Workspace>;
-  generateReport(studentId: string): Promise<Workspace>;
+  generateReport(studentId: string, scope?: EvidenceScope): Promise<Workspace>;
   finalizeReport(
     id: string,
     version: number,
@@ -31,6 +54,15 @@ export interface SastraClient {
   ): Promise<Workspace>;
 }
 class DemoClient implements SastraClient {
+  async listPresentations(): Promise<PresentationDraft[]> {
+    return [];
+  }
+  async generatePresentation(): Promise<PresentationDraft> {
+    throw new Error("Hubungkan backend untuk membuat file PowerPoint.");
+  }
+  async downloadPresentation(): Promise<Blob> {
+    throw new Error("Hubungkan backend untuk mengunduh PowerPoint.");
+  }
   private read(): Workspace {
     const saved = localStorage.getItem(key);
     if (!saved) return makeFixture();
@@ -62,6 +94,12 @@ class DemoClient implements SastraClient {
         id: crypto.randomUUID(),
         title: i.topic.trim(),
         objective: i.objective.trim(),
+        subject: i.subject,
+        assessmentType: i.assessmentType,
+        semester: i.semester,
+        materials: i.materials.length ? i.materials : [i.topic.trim()],
+        className: i.className || "IV A",
+        weight: i.weight || 1,
         duration: i.duration,
         version: 1,
         status: "DRAFT",
@@ -76,6 +114,23 @@ class DemoClient implements SastraClient {
         "ContentAgent",
         `Draf contoh “${i.topic}” disiapkan untuk ditinjau.`,
       );
+      return w;
+    });
+  }
+  importContent(i: ExternalContentInput) {
+    return this.change((w) => {
+      w.contents.unshift({
+        ...i,
+        id: crypto.randomUUID(),
+        title: i.topic,
+        version: 1,
+        status: "DRAFT",
+        origin: "EXTERNAL",
+        questions: i.answerKey.map((q) => q.question),
+        rubric: i.answerKey
+          .map((q) => `Kunci: ${q.correctAnswer} · ${q.rubric} (${q.max} poin)`)
+          .join("\n"),
+      });
       return w;
     });
   }
@@ -116,15 +171,42 @@ class DemoClient implements SastraClient {
       return w;
     });
   }
-  generateReport(studentId: string) {
-    return this.change((w) => generateReport(w, studentId));
+  generateReport(studentId: string, scope: EvidenceScope = {}) {
+    return this.change((w) => generateReport(w, studentId, scope));
   }
   finalizeReport(id: string, v: number, narrative: string) {
     return this.change((w) => finalizeReport(w, id, v, narrative));
   }
 }
 class BackendClient implements SastraClient {
-  private base = (import.meta.env.VITE_API_URL ?? "/api/v1").replace(/\/$/, "");
+  async listPresentations(contentId: string): Promise<PresentationDraft[]> {
+    return (
+      await this.request(
+        `/assessment-versions/${encodeURIComponent(contentId)}/presentations`,
+      )
+    ).json();
+  }
+  async generatePresentation(
+    contentId: string,
+    expectedVersion: number,
+    slideCount: number,
+  ): Promise<PresentationDraft> {
+    return (
+      await this.request(
+        `/assessment-versions/${encodeURIComponent(contentId)}/presentations`,
+        {
+          method: "POST",
+          body: JSON.stringify({ expectedVersion, slideCount }),
+        },
+      )
+    ).json();
+  }
+  async downloadPresentation(id: string): Promise<Blob> {
+    return (
+      await this.request(`/presentations/${encodeURIComponent(id)}/file`)
+    ).blob();
+  }
+  private base = apiBase;
   private async request(path: string, init?: RequestInit) {
     const r = await fetch(`${this.base}${path}`, {
       ...init,
@@ -136,10 +218,16 @@ class BackendClient implements SastraClient {
         ...init?.headers,
       },
     });
-    if (!r.ok)
+    if (!r.ok) {
+      if (r.status === 401)
+        window.dispatchEvent(new Event("sastra-session-expired"));
+      const error = await r.json().catch(() => null);
       throw new Error(
-        `Server gagal merespons (${r.status}). Periksa koneksi dan coba lagi.`,
+        typeof error?.detail === "string"
+          ? error.detail
+          : `Server gagal merespons (${r.status}). Periksa koneksi dan coba lagi.`,
       );
+    }
     return r;
   }
   async load(): Promise<Workspace> {
@@ -167,6 +255,9 @@ class BackendClient implements SastraClient {
   generateContent(input: ContentInput) {
     return this.mutate("/assessment-versions/generate", input);
   }
+  importContent(input: ExternalContentInput) {
+    return this.mutate("/assessment-versions/import", input);
+  }
   approveContent(id: string, expectedVersion: number) {
     return this.mutate(
       `/assessment-versions/${encodeURIComponent(id)}/approve`,
@@ -178,10 +269,11 @@ class BackendClient implements SastraClient {
     f.set("file", i.file);
     f.set("studentId", i.studentId);
     f.set("title", i.title);
+    if (i.contentId) f.set("contentId", i.contentId);
     return this.mutate("/submissions", f);
   }
-  generateReport(studentId: string) {
-    return this.mutate("/reports/generate", { studentId });
+  generateReport(studentId: string, scope: EvidenceScope = {}) {
+    return this.mutate("/reports/generate", { studentId, ...scope });
   }
   finalizeReport(id: string, expectedVersion: number, narrative: string) {
     return this.mutate(`/report-versions/${encodeURIComponent(id)}/finalize`, {

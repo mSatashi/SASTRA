@@ -5,6 +5,7 @@ export type GradeItem = {
   feedback: string;
   score: number;
   max: number;
+  type?: "multiple_choice" | "essay";
 };
 export type Submission = {
   id: string;
@@ -14,8 +15,18 @@ export type Submission = {
   status: "AWAITING_REVIEW" | "APPROVED";
   version: number;
   identityConfirmed: boolean;
+  assessmentMatch?: "MATCH" | "UNCERTAIN";
   items: GradeItem[];
   assetName?: string;
+  assetMimeType?: string;
+  contentId?: string;
+  contentVersion?: number;
+  className?: string;
+  weight?: number;
+  subject?: string;
+  assessmentType?: AssessmentType;
+  semester?: "GANJIL" | "GENAP";
+  materials?: string[];
   history?: { version: number; items: GradeItem[] }[];
 };
 export type Student = {
@@ -33,6 +44,15 @@ export type Content = {
   version: number;
   module: string;
   questions: string[];
+  rubric?: string;
+  answerKey?: AnswerKeyItem[];
+  className?: string;
+  weight?: number;
+  origin?: string;
+  subject?: string;
+  assessmentType?: AssessmentType;
+  semester?: "GANJIL" | "GENAP";
+  materials?: string[];
 };
 export type Report = {
   id: string;
@@ -40,6 +60,7 @@ export type Report = {
   status: "DRAFT" | "FINAL" | "STALE";
   version: number;
   snapshot: string;
+  scope?: EvidenceScope;
   narrative: string;
   average: number;
   createdAt: string;
@@ -57,13 +78,52 @@ export type Workspace = {
   contents: Content[];
   reports: Report[];
   activities: Activity[];
+  rosterIsSample?: boolean;
 };
+export type AssessmentType = "TUGAS" | "KUIS" | "UTS" | "UAS";
+export type EvidenceScope = {
+  subject?: string;
+  semester?: string;
+  assessmentType?: string;
+  material?: string;
+};
+export type AnswerKeyItem = {
+  type: "essay" | "multiple_choice";
+  question: string;
+  options: string[];
+  correctAnswer: string;
+  rubric: string;
+  max: number;
+};
+export type ExternalContentInput = ContentInput & {
+  module: string;
+  answerKey: AnswerKeyItem[];
+};
+export function matchesEvidence(s: Submission, f: EvidenceScope) {
+  return (
+    (!f.subject || (s.subject || "IPAS") === f.subject) &&
+    (!f.semester || (s.semester || "GANJIL") === f.semester) &&
+    (!f.assessmentType || (s.assessmentType || "KUIS") === f.assessmentType) &&
+    (!f.material || (s.materials || [s.title]).includes(f.material))
+  );
+}
 export type ContentInput = {
   topic: string;
   objective: string;
   duration: number;
+  className?: "IV A";
+  weight?: number;
+  subject: string;
+  assessmentType: AssessmentType;
+  semester: "GANJIL" | "GENAP";
+  materials: string[];
 };
-export type UploadInput = { studentId: string; title: string; file: File };
+export type UploadInput = {
+  studentId: string;
+  title: string;
+  file: File;
+  contentId?: string;
+};
 export function percentage(items: GradeItem[]) {
   return Math.round(
     (items.reduce((s, i) => s + i.score, 0) /
@@ -71,19 +131,37 @@ export function percentage(items: GradeItem[]) {
       100,
   );
 }
-export function approvedFor(w: Workspace, studentId: string) {
+export function approvedFor(
+  w: Workspace,
+  studentId: string,
+  scope: EvidenceScope = {},
+) {
   return w.submissions.filter(
-    (s) => s.studentId === studentId && s.status === "APPROVED",
+    (s) =>
+      s.studentId === studentId &&
+      s.status === "APPROVED" &&
+      matchesEvidence(s, scope),
   );
 }
-export function averageFor(w: Workspace, studentId: string) {
-  const a = approvedFor(w, studentId);
+export function averageFor(
+  w: Workspace,
+  studentId: string,
+  scope: EvidenceScope = {},
+) {
+  const a = approvedFor(w, studentId, scope);
   return a.length
-    ? Math.round(a.reduce((n, s) => n + percentage(s.items), 0) / a.length)
+    ? Math.round(
+        a.reduce((n, s) => n + percentage(s.items) * (s.weight ?? 1), 0) /
+          a.reduce((n, s) => n + (s.weight ?? 1), 0),
+      )
     : null;
 }
-export function snapshotFor(w: Workspace, studentId: string) {
-  return approvedFor(w, studentId)
+export function snapshotFor(
+  w: Workspace,
+  studentId: string,
+  scope: EvidenceScope = {},
+) {
+  return approvedFor(w, studentId, scope)
     .map((s) => `${s.id}:${s.version}`)
     .sort()
     .join("|");
@@ -145,18 +223,23 @@ export function approveGrade(
   );
   return w;
 }
-export function generateReport(w: Workspace, studentId: string): Workspace {
-  const average = averageFor(w, studentId),
+export function generateReport(
+  w: Workspace,
+  studentId: string,
+  scope: EvidenceScope = {},
+): Workspace {
+  const average = averageFor(w, studentId, scope),
     student = w.students.find((s) => s.id === studentId);
   if (average === null || !student)
     throw new Error("Belum ada nilai yang disetujui untuk siswa ini.");
-  const count = approvedFor(w, studentId).length;
+  const count = approvedFor(w, studentId, scope).length;
   w.reports.unshift({
     id: crypto.randomUUID(),
     studentId,
     status: "DRAFT",
     version: 1,
-    snapshot: snapshotFor(w, studentId),
+    scope,
+    snapshot: snapshotFor(w, studentId, scope),
     average,
     createdAt: new Date().toISOString(),
     narrative: `${student.name} memperoleh rata-rata ${average} dari ${count} asesmen yang telah disetujui guru. ${average >= 80 ? "Pemahaman konsep sudah baik. Latihan menjelaskan alasan dengan contoh sehari-hari dapat memperdalam pemahamannya." : "Pemahaman konsep dasar mulai terbentuk. Pendampingan bertahap dan latihan menggunakan contoh konkret disarankan untuk menguatkan penalarannya."} ${count < 2 ? "Bukti asesmen berikutnya diperlukan untuk menilai perkembangan dari waktu ke waktu." : "Gunakan rincian tiap asesmen untuk merencanakan tindak lanjut pembelajaran."}`,
@@ -179,7 +262,7 @@ export function finalizeReport(
     !r ||
     r.version !== expectedVersion ||
     r.status !== "DRAFT" ||
-    r.snapshot !== snapshotFor(w, r.studentId)
+    r.snapshot !== snapshotFor(w, r.studentId, r.scope)
   )
     throw new Error(
       "Sumber laporan berubah atau laporan sudah final. Buat draf baru dari nilai terbaru.",

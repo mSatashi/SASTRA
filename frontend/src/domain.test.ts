@@ -109,3 +109,34 @@ describe("teacher approval and report evidence", () => {
     );
   });
 });
+
+it("scopes multi-material evidence and applies teacher weights without category defaults", () => {
+  const w = makeFixture();
+  const first = w.submissions.find(
+    (s) => s.studentId === "s1" && s.status === "APPROVED",
+  )!;
+  Object.assign(first, {
+    subject: "Matematika",
+    assessmentType: "UTS",
+    semester: "GENAP",
+    materials: ["Pecahan", "Bilangan"],
+    weight: 2,
+  });
+  w.submissions.push({
+    ...structuredClone(first),
+    id: "weighted",
+    weight: 1,
+    items: first.items.map((i) => ({ ...i, score: 0 })),
+  });
+  const scope = {
+    subject: "Matematika",
+    semester: "GENAP",
+    material: "Pecahan",
+  };
+  expect(averageFor(w, "s1", scope)).toBe(59);
+  expect(approvedFor(w, "s1", { material: "Bilangan" })).toHaveLength(2);
+  generateReport(w, "s1", scope);
+  expect(w.reports[0].scope).toEqual(scope);
+  expect(w.reports[0].snapshot).toBe(snapshotFor(w, "s1", scope));
+  expect(averageFor(w, "s1", { subject: "Bahasa Inggris" })).toBeNull();
+});
