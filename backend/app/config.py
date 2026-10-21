@@ -39,6 +39,12 @@ class Settings:
     SAMPLES_DIR: Path = BASE_DIR / "data" / "samples"
     DB_PATH: Path = BASE_DIR / "data" / "sastra.json"
     WORKSPACE_DB: Path = Path(os.getenv("SASTRA_WORKSPACE_DB", str(DATA_DIR / "workspace.sqlite3")))
+    STORAGE_BACKEND: str = os.getenv("SASTRA_STORAGE_BACKEND", "sqlite")
+    SQL_INSTANCE: str = os.getenv("GCP_SQL_INSTANCE", "")
+    SQL_DATABASE: str = os.getenv("GCP_SQL_DATABASE", "sastra")
+    SQL_USER: str = os.getenv("GCP_SQL_USER", "sastra_app")
+    SQL_PASSWORD: str = os.getenv("GCP_SQL_PASSWORD", "")
+    ASSET_BUCKET: str = os.getenv("GCP_ASSET_BUCKET", "")
     
     # Ensure directories exist
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)

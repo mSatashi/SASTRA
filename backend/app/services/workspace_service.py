@@ -85,9 +85,19 @@ def seed_workspace():
 
 
 class WorkspaceService:
-    def __init__(self, path=None, provider=None):
+    def __init__(self, path=None, provider=None, store=None):
         self.path = Path(path or settings.WORKSPACE_DB)
         self.provider = provider or llm_service
+        self.store = store
+        if path is None and store is None:
+            if settings.STORAGE_BACKEND == "cloudsql":
+                from .cloud_workspace_store import CloudWorkspaceStore
+                self.store = CloudWorkspaceStore(instance=settings.SQL_INSTANCE,
+                    database=settings.SQL_DATABASE, user=settings.SQL_USER,
+                    password=settings.SQL_PASSWORD, bucket=settings.ASSET_BUCKET,
+                    project=settings.GCP_PROJECT, seed=seed_workspace)
+            elif settings.STORAGE_BACKEND != "sqlite":
+                raise ValueError("Unknown workspace storage backend")
 
     def _connect(self):
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -99,6 +109,8 @@ class WorkspaceService:
         return db
 
     def read(self):
+        if self.store:
+            return self.store.read()
         db = self._connect()
         try:
             return json.loads(db.execute("SELECT data FROM workspace WHERE id=1").fetchone()[0])
@@ -106,6 +118,8 @@ class WorkspaceService:
             db.close()
 
     def mutate(self, change, asset=None):
+        if self.store:
+            return self.store.mutate(change, asset)
         db = self._connect()
         try:
             db.execute("BEGIN IMMEDIATE")
@@ -247,6 +261,11 @@ class WorkspaceService:
         return self.mutate(change, asset=(submission["id"], mime, data))
 
     def asset(self, submission_id):
+        if self.store:
+            row = self.store.asset(submission_id)
+            if not row:
+                raise WorkspaceError("Bukti jawaban tidak ditemukan.", 404)
+            return row
         db = self._connect()
         try:
             row = db.execute("SELECT mime, data FROM assets WHERE id=?", (submission_id,)).fetchone()

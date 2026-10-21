@@ -10,8 +10,24 @@ from .api.web_access import router as access_router, access_boundary
 from .services.gemini_service import AIServiceError
 from .services.workspace_service import WorkspaceError
 from fastapi.responses import JSONResponse, FileResponse
+from contextlib import asynccontextmanager
+from starlette.concurrency import run_in_threadpool
+from .services.workspace_service import workspace_service
+
+
+@asynccontextmanager
+async def lifespan(app):
+    store = workspace_service.store
+    try:
+        if store:
+            await run_in_threadpool(store._initialize)
+        yield
+    finally:
+        if store:
+            await run_in_threadpool(store.close)
 
 app = FastAPI(
+    lifespan=lifespan,
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
     description="Backend API untuk SASTRA: Student Assessment, Tracker, and Report Assistance"
