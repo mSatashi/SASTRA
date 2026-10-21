@@ -1,0 +1,25 @@
+# Allow only frontend sources and the build definition into the upload archive.
+**
+!cloudbuild.yaml
+!frontend/
+!frontend/**
+
+# Re-exclude local dependencies, outputs, credentials and editor metadata.
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+frontend/test-results/
+frontend/playwright-report/
+frontend/.git/
+frontend/.npmrc
+frontend/.yarnrc*
+frontend/.vscode/
+frontend/.idea/
+frontend/.env
+frontend/.env.*
+frontend/**/*.log
+frontend/**/*.tsbuildinfo
+frontend/**/*.pem
+frontend/**/*.key
+frontend/**/*credentials*.json
+frontend/**/*service-account*.json

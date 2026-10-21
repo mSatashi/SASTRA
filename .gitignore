@@ -29,3 +29,13 @@ backend/data/sastra.json
 .DS_Store
 Thumbs.db
 *.log
+
+# SASTRA frontend demo and local documentation
+node_modules/
+dist/
+.env
+.env.*.local
+docs/qa/
+frontend/test-results/
+frontend/playwright-report/
+*.tsbuildinfo
