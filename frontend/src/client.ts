@@ -140,6 +140,8 @@ class BackendClient implements SastraClient {
       },
     });
     if (!r.ok) {
+      if (r.status === 401)
+        window.dispatchEvent(new Event("sastra-session-expired"));
       const error = await r.json().catch(() => null);
       throw new Error(
         typeof error?.detail === "string"

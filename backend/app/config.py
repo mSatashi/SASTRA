@@ -9,6 +9,8 @@ class Settings:
     PROJECT_NAME: str = "SASTRA API"
     VERSION: str = "1.0.0"
     API_PREFIX: str = "/api"
+    WEB_PUBLIC_MODE: bool = os.getenv("WEB_PUBLIC_MODE", "false").lower() == "true"
+    WEB_ACCESS_CODE: str = os.getenv("WEB_ACCESS_CODE", "")
     
     # Gemini & GCP Settings
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")

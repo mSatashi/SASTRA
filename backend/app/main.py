@@ -6,6 +6,7 @@ from .api.grading_routes import router as grading_router
 from .api.report_routes import router as report_router
 from .api.student_routes import router as student_router
 from .api.workspace_routes import router as workspace_router
+from .api.web_access import router as access_router, access_boundary
 from .services.gemini_service import AIServiceError
 from .services.workspace_service import WorkspaceError
 from fastapi.responses import JSONResponse, FileResponse
@@ -15,6 +16,7 @@ app = FastAPI(
     version=settings.VERSION,
     description="Backend API untuk SASTRA: Student Assessment, Tracker, and Report Assistance"
 )
+app.middleware("http")(access_boundary)
 
 # Enable CORS for frontend Vite development
 app.add_middleware(
@@ -35,6 +37,7 @@ app.include_router(grading_router, prefix=settings.API_PREFIX)
 app.include_router(report_router, prefix=settings.API_PREFIX)
 app.include_router(student_router, prefix=settings.API_PREFIX)
 app.include_router(workspace_router)
+app.include_router(access_router)
 
 
 @app.exception_handler(AIServiceError)
