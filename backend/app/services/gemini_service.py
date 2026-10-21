@@ -74,7 +74,7 @@ class GeminiService:
         # A configured client is not proof of a successful model request.
         return self.client is not None
 
-    def _generate(self, contents, system_instruction, json_mode):
+    def _generate(self, contents, system_instruction, json_mode, response_schema=None):
         if not self.client:
             self._initialize_client()
         if not self.client:
@@ -88,6 +88,7 @@ class GeminiService:
                 config=types.GenerateContentConfig(
                     system_instruction=system_instruction,
                     response_mime_type="application/json" if json_mode else "text/plain",
+                    response_json_schema=response_schema,
                     max_output_tokens=8192,
                 ),
             )
@@ -112,16 +113,16 @@ class GeminiService:
             raise AIServiceError(self.last_error, status) from exc
 
     def generate_text(self, prompt: str, system_instruction: Optional[str] = None,
-                      json_mode: bool = True) -> str:
-        return self._generate(prompt, system_instruction, json_mode)
+                      json_mode: bool = True, response_schema=None) -> str:
+        return self._generate(prompt, system_instruction, json_mode, response_schema)
 
     def analyze_image_and_text(self, image_bytes: bytes, prompt: str,
                                mime_type: str = "image/jpeg",
-                               system_instruction: Optional[str] = None) -> str:
+                               system_instruction: Optional[str] = None, response_schema=None) -> str:
         from google.genai import types
         return self._generate(
             [types.Part.from_bytes(data=image_bytes, mime_type=mime_type), prompt],
-            system_instruction, True,
+            system_instruction, True, response_schema,
         )
 
 

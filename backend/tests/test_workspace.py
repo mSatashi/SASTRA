@@ -16,6 +16,7 @@ from PIL import Image
 from backend.app.main import app
 from backend.app.api import workspace_routes
 from backend.app.services.workspace_service import WorkspaceService
+from backend.app.services.gemini_service import AIServiceError
 
 
 class ModelStub:
@@ -25,7 +26,7 @@ class ModelStub:
     def __init__(self):
         self.report_prompt = ""
         self.raw = None
-        self.grades = {"items": [
+        self.grades = {"assessmentMatch": "MATCH", "items": [
             {"number": 1, "answer": "A", "feedback": "Tepat.", "score": 25},
             {"number": 2, "answer": "Cahaya membantu fotosintesis.", "feedback": "Jelaskan energi.", "score": 15},
         ]}
@@ -175,6 +176,68 @@ class WorkspaceContractTest(unittest.TestCase):
         self.assertEqual(self.upload(c).status_code, 502)
         self.provider.grades["items"] = self.provider.grades["items"][:1]
         self.assertEqual(self.upload(c).status_code, 502)
+        self.assertEqual(self.service.read()["submissions"], [])
+
+    def test_mismatched_assessment_returns_actionable_error_without_saving_grade_or_asset(self):
+        c = self.content()
+        self.provider.grades["assessmentMatch"] = "MISMATCH"
+        for item in self.provider.grades["items"]:
+            item.update(answer="[jawaban tidak ditemukan]", score=0)
+        before = self.service.read()
+        response = self.upload(c)
+        self.assertEqual(response.status_code, 422, response.text)
+        self.assertIn("Pilih asesmen", response.json()["detail"])
+        self.assertEqual(self.service.read(), before)
+        db = self.service._connect()
+        try:
+            self.assertEqual(db.execute("SELECT count(*) FROM assets").fetchone()[0], 0)
+        finally:
+            db.close()
+
+    def test_blank_ai_answers_retry_original_evidence_once_then_save_valid_review(self):
+        c = self.content()
+        broken = json.loads(json.dumps(self.provider.grades))
+        broken["items"][0]["answer"] = ""
+        with patch.object(self.provider, "analyze_image_and_text", side_effect=[json.dumps(broken), json.dumps(self.provider.grades)]) as call:
+            response = self.upload(c)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(call.call_count, 2)
+        for args in call.call_args_list:
+            self.assertEqual(args.args[0], self.image)
+            schema = args.kwargs["response_schema"]
+            self.assertIn("assessmentMatch", schema["required"])
+            self.assertEqual(schema["$defs"]["GradedAnswer"]["properties"]["answer"]["minLength"], 1)
+        saved = response.json()["submissions"]
+        self.assertEqual(len(saved), 1)
+        self.assertEqual(saved[0]["status"], "AWAITING_REVIEW")
+        self.assertFalse(saved[0]["identityConfirmed"])
+
+    def test_repeated_invalid_vision_output_never_saves_partial_results(self):
+        c = self.content()
+        before = self.service.read()
+        with patch.object(self.provider, "analyze_image_and_text", return_value='{"items": []}') as call:
+            response = self.upload(c)
+        self.assertEqual(response.status_code, 502)
+        self.assertEqual(call.call_count, 2)
+        self.assertEqual(self.service.read(), before)
+
+    def test_uncertain_match_and_incorrect_answer_still_require_teacher_review(self):
+        c = self.content()
+        self.provider.grades["assessmentMatch"] = "UNCERTAIN"
+        self.provider.grades["items"][0].update(answer="[tidak terbaca]", score=0)
+        response = self.upload(c)
+        self.assertEqual(response.status_code, 200, response.text)
+        saved = response.json()["submissions"][0]
+        self.assertEqual(saved["assessmentMatch"], "UNCERTAIN")
+        self.assertEqual(saved["status"], "AWAITING_REVIEW")
+        self.assertEqual(saved["items"][0]["score"], 0)
+
+    def test_provider_failure_is_not_retried_as_format_error(self):
+        c = self.content()
+        with patch.object(self.provider, "analyze_image_and_text", side_effect=AIServiceError("Quota", 429)) as call:
+            response = self.upload(c)
+        self.assertEqual(response.status_code, 429)
+        self.assertEqual(call.call_count, 1)
         self.assertEqual(self.service.read()["submissions"], [])
 
     def test_approval_rejects_bad_scores_and_preserves_evidence(self):

@@ -66,6 +66,7 @@ class GradedAnswer(BaseModel):
 
 
 class GeneratedGrades(BaseModel):
+    assessmentMatch: Literal["MATCH", "MISMATCH", "UNCERTAIN"]
     items: list[GradedAnswer] = Field(min_length=1, max_length=20)
 
 

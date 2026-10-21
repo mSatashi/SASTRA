@@ -12,6 +12,7 @@ from google import genai
 from google.oauth2.credentials import Credentials
 from google.auth.exceptions import DefaultCredentialsError
 from backend.app.services.gemini_service import AIServiceError, GeminiService
+from backend.app.models.workspace import GeneratedGrades
 
 
 class GeminiSDKTest(unittest.TestCase):
@@ -56,6 +57,16 @@ class GeminiSDKTest(unittest.TestCase):
             data = payload["contents"][0]["parts"][0]["inlineData"]
             self.assertEqual(data.get("mimeType", data.get("mime_type")), mime)
             self.assertEqual(base64.b64decode(data["data"]), b"synthetic file")
+
+    def test_sends_response_json_schema_for_text_image_and_pdf(self):
+        schema = GeneratedGrades.model_json_schema()
+        self.service.generate_text("test", response_schema=schema)
+        for mime in ("image/png", "application/pdf"):
+            self.service.analyze_image_and_text(b"synthetic file", "Grade", mime_type=mime, response_schema=schema)
+        for request in self.requests:
+            config = json.loads(request.content)["generationConfig"]
+            self.assertEqual(config["responseMimeType"], "application/json")
+            self.assertEqual(config["responseJsonSchema"], schema)
 
     def test_permission_failure_returns_actionable_error_without_fallback(self):
         self.code = 403

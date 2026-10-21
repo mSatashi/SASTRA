@@ -15,6 +15,7 @@ export type Submission = {
   status: "AWAITING_REVIEW" | "APPROVED";
   version: number;
   identityConfirmed: boolean;
+  assessmentMatch?: "MATCH" | "UNCERTAIN";
   items: GradeItem[];
   assetName?: string;
   assetMimeType?: string;

@@ -394,8 +394,7 @@ export function AssessmentPage() {
       (!typeFilter || (c.assessmentType || "KUIS") === typeFilter) &&
       (!semesterFilter || (c.semester || "GANJIL") === semesterFilter),
   );
-  const selectedContent =
-    filteredContents.find((c) => c.id === contentId) || filteredContents[0];
+  const selectedContent = filteredContents.find((c) => c.id === contentId);
   const rows = w.submissions.filter(
     (s) => filter === "all" || s.status === "AWAITING_REVIEW",
   );
@@ -416,7 +415,9 @@ export function AssessmentPage() {
     }
     if (!isDemo && !selectedContent) {
       setValidation(
-        "Buat dan setujui materi beserta rubriknya sebelum mengunggah jawaban.",
+        availableContents.length
+          ? "Pilih asesmen yang sesuai dengan soal pada lembar jawaban."
+          : "Buat dan setujui materi beserta rubriknya sebelum mengunggah jawaban.",
       );
       return;
     }
@@ -425,7 +426,7 @@ export function AssessmentPage() {
         client.upload({
           file,
           studentId,
-          title: isDemo ? "Kuis 02 · Fotosintesis" : selectedContent.title,
+          title: isDemo ? "Kuis 02 · Fotosintesis" : selectedContent!.title,
           contentId: selectedContent?.id,
         }),
       isDemo
@@ -497,11 +498,11 @@ export function AssessmentPage() {
                     onChange={(e) => setContentId(e.target.value)}
                     required
                   >
-                    {!filteredContents.length && (
-                      <option value="">
-                        Tidak ada asesmen disetujui sesuai pilihan
-                      </option>
-                    )}
+                    <option value="" disabled>
+                      {filteredContents.length
+                        ? "Pilih asesmen yang sesuai dengan lembar jawaban"
+                        : "Tidak ada asesmen disetujui sesuai pilihan"}
+                    </option>
                     {filteredContents.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.assessmentType || "KUIS"} · {c.subject || "IPAS"} ·{" "}
@@ -509,6 +510,13 @@ export function AssessmentPage() {
                       </option>
                     ))}
                   </select>
+                )}
+                {!isDemo && (
+                  <p>
+                    Koreksi memakai soal, kunci, dan rubrik asesmen ini.
+                    Pastikan mata pelajaran serta materinya sesuai dengan file
+                    unggahan.
+                  </p>
                 )}
               </div>
             </div>
@@ -576,7 +584,7 @@ export function AssessmentPage() {
                 </select>
               </div>
             </div>
-            {!isDemo && !selectedContent && (
+            {!isDemo && !availableContents.length && (
               <p role="status">
                 Buat atau masukkan asesmen dari luar di{" "}
                 <Link to="/content">Materi & kuis</Link>, lalu setujui soal,
@@ -759,6 +767,12 @@ function AssessmentReview({ submission: s }: { submission: Submission }) {
           {approved ? "Nilai disetujui" : "Menunggu guru"}
         </Badge>
       </div>
+      {s.assessmentMatch === "UNCERTAIN" && (
+        <p className="notice warning" role="status">
+          AI belum dapat memastikan kecocokan lembar jawaban dengan asesmen.
+          Periksa soal, transkripsi, dan rubrik sebelum menyetujui nilai.
+        </p>
+      )}
       <div className="evidence-banner">
         <ScanLine size={21} />
         <div>

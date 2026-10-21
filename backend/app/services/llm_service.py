@@ -45,8 +45,8 @@ class LLMService:
         self.provider = provider
         logger.info(f"Provider LLM diganti menjadi: {self.provider}")
 
-    def generate_text(self, prompt: str, system_instruction: Optional[str] = None, json_mode: bool = True) -> str:
-        return self.backend.generate_text(prompt, system_instruction=system_instruction, json_mode=json_mode)
+    def generate_text(self, prompt: str, system_instruction: Optional[str] = None, json_mode: bool = True, response_schema=None) -> str:
+        return self.backend.generate_text(prompt, system_instruction=system_instruction, json_mode=json_mode, response_schema=response_schema)
 
     def analyze_image_and_text(
         self,
@@ -54,9 +54,11 @@ class LLMService:
         prompt: str,
         mime_type: str = "image/jpeg",
         system_instruction: Optional[str] = None,
+        response_schema=None,
     ) -> str:
         return self.backend.analyze_image_and_text(
-            image_bytes, prompt, mime_type=mime_type, system_instruction=system_instruction
+            image_bytes, prompt, mime_type=mime_type, system_instruction=system_instruction,
+            response_schema=response_schema,
         )
 
     def status(self) -> Dict[str, Any]:
