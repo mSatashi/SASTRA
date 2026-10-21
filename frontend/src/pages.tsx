@@ -46,6 +46,12 @@ export function ContentPage() {
   const { data: w, busy, run } = useWorkspace();
   const [topic, setTopic] = useState(""),
     [objective, setObjective] = useState(""),
+    [subject, setSubject] = useState("IPAS"),
+    [assessmentType, setAssessmentType] = useState<
+      "TUGAS" | "KUIS" | "UTS" | "UAS"
+    >("KUIS"),
+    [semester, setSemester] = useState<"GANJIL" | "GENAP">("GANJIL"),
+    [materialsText, setMaterialsText] = useState(""),
     [duration, setDuration] = useState(40),
     [selected, setSelected] = useState("");
   if (!w) return null;
@@ -54,7 +60,19 @@ export function ContentPage() {
     e.preventDefault();
     if (
       await run(
-        () => client.generateContent({ topic, objective, duration }),
+        () =>
+          client.generateContent({
+            topic,
+            objective,
+            duration,
+            subject,
+            assessmentType,
+            semester,
+            materials: materialsText
+              .split(",")
+              .map((material) => material.trim())
+              .filter(Boolean),
+          }),
         "Draf materi siap ditinjau.",
       )
     )
@@ -92,13 +110,71 @@ export function ContentPage() {
             <div className="form-row">
               <div>
                 <label htmlFor="subject">Mata pelajaran</label>
-                <input id="subject" value="IPAS" readOnly />
+                <select
+                  id="subject"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                >
+                  {[
+                    "IPAS",
+                    "Matematika",
+                    "Bahasa Indonesia",
+                    "Pendidikan Pancasila",
+                    "Bahasa Inggris",
+                    "Seni Budaya",
+                    "PJOK",
+                    "Informatika",
+                  ].map((name) => (
+                    <option key={name}>{name}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label htmlFor="phase">Fase / kelas</label>
                 <input id="phase" value="Fase B · Kelas IV" readOnly />
               </div>
             </div>
+            <div className="form-row">
+              <div>
+                <label htmlFor="assessment-type">Jenis asesmen</label>
+                <select
+                  id="assessment-type"
+                  value={assessmentType}
+                  onChange={(e) =>
+                    setAssessmentType(e.target.value as typeof assessmentType)
+                  }
+                >
+                  <option value="TUGAS">Tugas</option>
+                  <option value="KUIS">Kuis</option>
+                  <option value="UTS">UTS</option>
+                  <option value="UAS">UAS</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="semester">Semester</label>
+                <select
+                  id="semester"
+                  value={semester}
+                  onChange={(e) =>
+                    setSemester(e.target.value as typeof semester)
+                  }
+                >
+                  <option value="GANJIL">Ganjil</option>
+                  <option value="GENAP">Genap</option>
+                </select>
+              </div>
+            </div>
+            <label htmlFor="assessment-materials">Materi yang diujikan</label>
+            <input
+              id="assessment-materials"
+              value={materialsText}
+              onChange={(e) => setMaterialsText(e.target.value)}
+              placeholder="Contoh: Fotosintesis, bagian tumbuhan, perubahan energi"
+            />
+            <small>
+              Pisahkan beberapa materi dengan koma. Satu asesmen bisa mencakup
+              beberapa materi.
+            </small>
             <label htmlFor="objective">Tujuan pembelajaran</label>
             <textarea
               id="objective"
@@ -226,6 +302,8 @@ export function AssessmentPage() {
     [filter, setFilter] = useState("pending"),
     [studentId, setStudentId] = useState("s1"),
     [contentId, setContentId] = useState(""),
+    [subjectFilter, setSubjectFilter] = useState(""),
+    [typeFilter, setTypeFilter] = useState(""),
     [file, setFile] = useState<File | null>(null),
     [validation, setValidation] = useState(""),
     [preview, setPreview] = useState("");
@@ -240,8 +318,13 @@ export function AssessmentPage() {
   }, [file]);
   if (!w) return null;
   const availableContents = w.contents.filter((c) => c.status === "APPROVED");
+  const filteredContents = availableContents.filter(
+    (c) =>
+      (!subjectFilter || (c.subject || "IPAS") === subjectFilter) &&
+      (!typeFilter || (c.assessmentType || "KUIS") === typeFilter),
+  );
   const selectedContent =
-    availableContents.find((c) => c.id === contentId) || availableContents[0];
+    filteredContents.find((c) => c.id === contentId) || filteredContents[0];
   const rows = w.submissions.filter(
     (s) => filter === "all" || s.status === "AWAITING_REVIEW",
   );
@@ -344,10 +427,11 @@ export function AssessmentPage() {
                     required
                   >
                     {!availableContents.length && (
-                      <option value="">Setujui materi terlebih dahulu</option>
+                      <option value="">Setujui asesmen terlebih dahulu</option>
                     )}
-                    {availableContents.map((c) => (
+                    {filteredContents.map((c) => (
                       <option key={c.id} value={c.id}>
+                        {c.assessmentType || "KUIS"} · {c.subject || "IPAS"} ·{" "}
                         {c.title} · v{c.version}
                       </option>
                     ))}
@@ -355,6 +439,57 @@ export function AssessmentPage() {
                 )}
               </div>
             </div>
+            {!isDemo && (
+              <div className="form-row">
+                <div>
+                  <label htmlFor="subject-filter">Mata pelajaran</label>
+                  <select
+                    id="subject-filter"
+                    value={subjectFilter}
+                    onChange={(e) => {
+                      setSubjectFilter(e.target.value);
+                      setContentId("");
+                    }}
+                  >
+                    <option value="">Semua mata pelajaran</option>
+                    {[
+                      ...new Set(
+                        availableContents.map((c) => c.subject || "IPAS"),
+                      ),
+                    ].map((name) => (
+                      <option key={name}>{name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="type-filter">Jenis asesmen</label>
+                  <select
+                    id="type-filter"
+                    value={typeFilter}
+                    onChange={(e) => {
+                      setTypeFilter(e.target.value);
+                      setContentId("");
+                    }}
+                  >
+                    <option value="">Semua jenis</option>
+                    <option value="TUGAS">Tugas</option>
+                    <option value="KUIS">Kuis</option>
+                    <option value="UTS">UTS</option>
+                    <option value="UAS">UAS</option>
+                  </select>
+                </div>
+              </div>
+            )}
+            {!isDemo && selectedContent && (
+              <small>
+                Materi:{" "}
+                {(selectedContent.materials || [selectedContent.title]).join(
+                  ", ",
+                )}{" "}
+                · Semester{" "}
+                {(selectedContent.semester || "GANJIL").toLowerCase()}
+              </small>
+            )}
             <label className="upload-zone" htmlFor="answer-file">
               <ImagePlus size={27} />
               <strong>
@@ -489,8 +624,15 @@ function AssessmentReview({ submission: s }: { submission: Submission }) {
           <div>
             <h2>{student.name}</h2>
             <p>
-              {s.title} · versi {s.version}
+              {s.assessmentType || "KUIS"} · {s.subject || "IPAS"} · {s.title} ·
+              versi {s.version}
             </p>
+            {s.materials?.length ? (
+              <p>
+                Semester {(s.semester || "GANJIL").toLowerCase()} · Materi:{" "}
+                {s.materials.join(", ")}
+              </p>
+            ) : null}
           </div>
         </div>
         <Badge tone={approved ? "green" : "amber"}>

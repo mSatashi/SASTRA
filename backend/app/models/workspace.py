@@ -8,6 +8,10 @@ Text = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max
 class ContentInput(BaseModel):
     topic: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
     objective: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=1500)]
+    subject: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)] = "IPAS"
+    assessmentType: Literal["TUGAS", "KUIS", "UTS", "UAS"] = "KUIS"
+    semester: Literal["GANJIL", "GENAP"] = "GANJIL"
+    materials: list[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]] = Field(default_factory=list, max_length=10)
     duration: Literal[40, 80, 120] = 40
 
 

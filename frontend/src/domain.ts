@@ -19,6 +19,10 @@ export type Submission = {
   assetName?: string;
   assetMimeType?: string;
   contentId?: string;
+  subject?: string;
+  assessmentType?: AssessmentType;
+  semester?: "GANJIL" | "GENAP";
+  materials?: string[];
   history?: { version: number; items: GradeItem[] }[];
 };
 export type Student = {
@@ -37,6 +41,10 @@ export type Content = {
   module: string;
   questions: string[];
   rubric?: string;
+  subject?: string;
+  assessmentType?: AssessmentType;
+  semester?: "GANJIL" | "GENAP";
+  materials?: string[];
 };
 export type Report = {
   id: string;
@@ -63,10 +71,15 @@ export type Workspace = {
   activities: Activity[];
   rosterIsSample?: boolean;
 };
+export type AssessmentType = "TUGAS" | "KUIS" | "UTS" | "UAS";
 export type ContentInput = {
   topic: string;
   objective: string;
   duration: number;
+  subject: string;
+  assessmentType: AssessmentType;
+  semester: "GANJIL" | "GENAP";
+  materials: string[];
 };
 export type UploadInput = {
   studentId: string;
