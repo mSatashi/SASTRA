@@ -79,8 +79,8 @@ export function PresentationPanel({ content }: { content: Content }) {
         <Presentation size={20} /> PPT pembelajaran
       </h3>
       <p>
-        Ubah materi yang disetujui menjadi PowerPoint yang bisa diedit. Periksa
-        draf sebelum digunakan mengajar.
+        Buat PowerPoint 16:9 dengan desain visual SASTRA yang bisa diedit.
+        Periksa draf sebelum digunakan mengajar.
       </p>
       {isDemo ? (
         <p>Hubungkan backend untuk membuat file PPTX.</p>

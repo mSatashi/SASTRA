@@ -1,0 +1,9 @@
+Built-in ImageGen assets generated 2026-10-22 for the SASTRA custom MCP designer.
+These images are synthetic, not photographs of real plants or actual students.
+The source files are copied into the repository for reproducible local rendering.
+
+forest-cover.png final prompt:
+Create a premium editorial botanical photograph for a 16:9 educational presentation cover. Realistic young green bean plant, vibrant fresh leaves, dramatic warm sunlight from upper right, very dark forest green garden background, refined rich film photography texture, natural botanical accuracy. Composition: the plant fills the RIGHT HALF with beautiful leaf details, while the LEFT HALF is nearly uniform very dark green shadow with ample negative space for large white typography that will be added separately. Landscape wide cinematic 16:9 crop. No text, letters, logos, equations, arrows, infographic symbols or border. Not a collage, one coherent image.
+
+classroom-activity.png final prompt:
+Create a warm sophisticated editorial illustration for an Indonesian elementary school science lesson, landscape 3:2. Two fictional Indonesian children about 9 years old, boy and girl in simple cream school shirts, gently observing a small potted bean plant together at a sunny classroom table, one holding a notebook and the other looking at a leaf with a magnifying glass. Natural comfortable postures, correct hands, joyful curiosity, not posing for camera. Beautiful textured gouache and watercolor on warm ivory paper, natural sage and forest green with small golden yellow accents. Plant clearly visible center foreground, calm white/ivory classroom background with subtle window sunlight. No readable words, writing, letters, logos, icons, arrows, stickers, frames or collage. High quality children's nonfiction book art.

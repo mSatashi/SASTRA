@@ -1,0 +1,3 @@
+-r requirements.txt
+# Optional, isolated MCP process. Not installed by the production Dockerfile.
+mcp==2.3.0

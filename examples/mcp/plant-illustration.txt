@@ -1,0 +1,6 @@
+Asset: plant-illustration.png
+Origin: built-in ImageGen tool, generated 2026-10-22 for SASTRA's local Office MCP evaluation.
+This is an AI-generated illustration, not a real photograph or a diagram of chemical reactions.
+
+Final prompt:
+Use case: scientific-educational. Create one square classroom botanical illustration for Indonesian fourth-grade photosynthesis slides. Show a single healthy young green bean plant with several broad intact leaves, a short stem and visible fine branching roots in a small clean cutaway of brown soil at the bottom. Warm natural sunlight comes from the upper left; subtle pale sunlight rays fall on the leaves. Elegant clean textbook watercolor and gouache illustration, accurate simple botanical structure, natural greens, white background, ample clear space around the whole plant, no frame. No text, labels, symbols, arrows, equations, faces, or invented organelles. This is an illustrative plant, not a scientific diagram of chemical reactions. Image will be placed at 4.45 by 4.45 inches on a white slide beside editable explanation text.

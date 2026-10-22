@@ -1,0 +1,94 @@
+{
+  "theme": "forest",
+  "title": "Rahasia\ndapur hijau",
+  "subtitle": "Fotosintesis dan cara tumbuhan\nmembuat makanannya sendiri.",
+  "coverVisual": "forest",
+  "slides": [
+    {
+      "layout": "hook",
+      "kicker": "Mulai dari rasa ingin tahu",
+      "title": "Tanaman juga butuh makanan",
+      "lead": "Tanaman tidak makan nasi.\nDari mana makanannya berasal?",
+      "items": [{"label": "Amati", "body": "Perhatikan tanaman di sekitar kelas. Bagian mana yang paling banyak terkena cahaya?"}],
+      "visual": "none",
+      "notes": "Minta siswa menyampaikan dugaan awal. Terima berbagai jawaban sebelum membahas konsep."
+    },
+    {
+      "layout": "concept",
+      "kicker": "Kenali bahan dan energi",
+      "title": "Dapur kecil di dalam daun",
+      "lead": "",
+      "items": [
+        {"label": "Air dari tanah", "body": "Akar menyerap air lalu menyalurkannya menuju daun."},
+        {"label": "Karbon dioksida dari udara", "body": "Daun memperoleh karbon dioksida dari udara di sekitarnya."},
+        {"label": "Energi cahaya", "body": "Klorofil menangkap energi cahaya untuk membantu fotosintesis."}
+      ],
+      "visual": "plant",
+      "notes": "Dapur merupakan analogi untuk proses membuat makanan. Tumbuhan tidak memiliki dapur seperti manusia."
+    },
+    {
+      "layout": "process",
+      "kicker": "Ikuti prosesnya",
+      "title": "Bagaimana makanan itu dibuat?",
+      "lead": "Saat mendapat cahaya, tumbuhan mengolah air dan karbon dioksida.",
+      "items": [
+        {"label": "Bahan tersedia", "body": "Air dari tanah dan karbon dioksida dari udara tersedia bagi tumbuhan."},
+        {"label": "Cahaya tertangkap", "body": "Klorofil menangkap energi cahaya untuk menjalankan prosesnya."},
+        {"label": "Makanan terbentuk", "body": "Tumbuhan menghasilkan gula sebagai makanan dan melepaskan oksigen."}
+      ],
+      "visual": "none",
+      "notes": "Urutan ini menyederhanakan konsep untuk kelas IV, bukan diagram lengkap reaksi biokimia."
+    },
+    {
+      "layout": "compare",
+      "kicker": "Telusuri perubahan",
+      "title": "Bahan masuk, hasil terbentuk",
+      "lead": "Cahaya memberi energi agar proses fotosintesis dapat berlangsung.",
+      "items": [
+        {"label": "Bahan", "body": "Air + karbon dioksida\nBerasal dari tanah dan udara."},
+        {"label": "Hasil", "body": "Gula + oksigen\nGula membantu tumbuhan tumbuh."}
+      ],
+      "visual": "none",
+      "notes": "Bandingkan bahan yang masuk dengan zat yang dihasilkan. Hubungkan dengan peran cahaya sebagai energi."
+    },
+    {
+      "layout": "activity",
+      "kicker": "Belajar dari sekitar",
+      "title": "Detektif daun di kelas",
+      "lead": "",
+      "items": [
+        {"label": "Amati", "body": "Perhatikan bentuk dan warna daun tanaman di dekatmu."},
+        {"label": "Catat", "body": "Catat kebutuhan tanaman: air, udara, dan cahaya."},
+        {"label": "Diskusikan", "body": "Warna daun saja belum membuktikan fotosintesis."}
+      ],
+      "visual": "classroom",
+      "notes": "Kegiatan ini melatih observasi dan diskusi. Jangan menyebutnya eksperimen pembuktian fotosintesis."
+    },
+    {
+      "layout": "quiz",
+      "kicker": "Cek pemahaman",
+      "title": "Peran cahaya bagi tumbuhan",
+      "lead": "Cahaya digunakan tumbuhan sebagai …",
+      "items": [
+        {"label": "A", "body": "Bahan makanan yang diserap akar"},
+        {"label": "B", "body": "Sumber energi untuk fotosintesis"},
+        {"label": "C", "body": "Gas yang dilepas ke udara"}
+      ],
+      "visual": "none",
+      "notes": "Minta siswa menjelaskan alasan pilihannya sebelum diskusi kelas."
+    },
+    {
+      "layout": "reflection",
+      "kicker": "Bawa pulang gagasannya",
+      "title": "Satu daun, banyak pertanyaan",
+      "lead": "Ceritakan kembali dengan bahasamu sendiri.",
+      "items": [
+        {"label": "Bahan", "body": "Dari mana tumbuhan memperoleh bahan untuk fotosintesis?"},
+        {"label": "Energi", "body": "Apa perbedaan bahan dan energi pada fotosintesis?"},
+        {"label": "Manfaat", "body": "Mengapa tumbuhan memerlukan makanan untuk tumbuh?"}
+      ],
+      "visual": "none",
+      "notes": "Gunakan jawaban lisan atau catatan singkat siswa untuk menentukan tindak lanjut pembelajaran."
+    }
+  ]
+}

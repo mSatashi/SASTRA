@@ -1,0 +1,13 @@
+{
+  "request": {
+    "topic": "Fotosintesis",
+    "objective": "Menjelaskan peran cahaya dan daun dalam fotosintesis.",
+    "subject": "IPAS",
+    "assessmentType": "KUIS",
+    "semester": "GANJIL",
+    "materials": ["Fotosintesis", "Bagian tumbuhan"],
+    "duration": 40,
+    "className": "IV A",
+    "weight": 1
+  }
+}
