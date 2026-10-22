@@ -23,6 +23,7 @@ backend/data/uploads/*
 !backend/data/uploads/.gitkeep
 backend/data/sastra.json
 backend/data/*.sqlite3*
+backend/data/mcp/
 
 # IDE & OS
 .vscode/
