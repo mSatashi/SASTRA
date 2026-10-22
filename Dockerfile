@@ -20,10 +20,18 @@ FROM python:3.12-slim AS runner
 
 WORKDIR /app
 
+COPY --from=node:22-bookworm-slim /usr/local/bin/node /usr/local/bin/node
+COPY --from=frontend-builder /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
+COPY tools/presentation-designer/package*.json /app/tools/presentation-designer/
+COPY tools/presentation-designer/render.mjs /app/tools/presentation-designer/
+COPY examples/mcp/*.png /app/examples/mcp/
+
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
+    curl libstdc++6 \
     && rm -rf /var/lib/apt/lists/*
+
+RUN node /usr/local/lib/node_modules/npm/bin/npm-cli.js --prefix /app/tools/presentation-designer ci --omit=dev --ignore-scripts --no-audit --no-fund
 
 # Install Python dependencies
 COPY backend/requirements.txt ./backend/

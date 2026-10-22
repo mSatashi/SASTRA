@@ -21,11 +21,10 @@ class SlideModel:
 
     def generate_text(self, prompt, **kwargs):
         self.prompt = prompt
-        return json.dumps({"slides": [
-            {"title": "Tujuan pembelajaran", "bullets": ["Menjelaskan peran cahaya pada tumbuhan."], "notes": "Ajak siswa mengamati."},
-            {"title": "Fotosintesis", "bullets": ["Daun menangkap cahaya dengan bantuan klorofil."], "notes": "Gunakan contoh tanaman."},
-            {"title": "Refleksi", "bullets": ["Mengapa tumbuhan memerlukan cahaya?"], "notes": "Diskusikan pendapat siswa."},
-        ]})
+        plan=json.loads((Path(__file__).resolve().parents[2]/"examples/mcp/designed-lesson.json").read_text(encoding="utf-8"))
+        plan.update(title="Fotosintesis",coverVisual="none")
+        plan["slides"]=[plan["slides"][i] for i in (0,1,6)]
+        return json.dumps(plan)
 
 
 class PresentationContractTest(unittest.TestCase):
@@ -67,7 +66,7 @@ class PresentationContractTest(unittest.TestCase):
         self.assertEqual(len(prs.slides), 4)
         self.assertAlmostEqual(prs.slide_width / prs.slide_height, 16 / 9, places=5)
         self.assertIn("Fotosintesis", prs.slides[0].shapes[1].text)
-        self.assertIn("Materi c1 v2", prs.slides[1].notes_slide.notes_text_frame.text)
+        self.assertIn("materi c1 versi 2", prs.slides[1].notes_slide.notes_text_frame.text)
         reopened = PresentationService(WorkspaceService(self.service.path, self.model))
         self.assertEqual(reopened.download(draft["id"]), file.content)
         self.assertEqual(reopened.list_for("c1")[0]["id"], draft["id"])

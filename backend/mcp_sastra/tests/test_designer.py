@@ -44,7 +44,7 @@ class DesignerTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ValidationError): DesignPlan.model_validate(raw)
 
     def test_approval_and_version_checked_before_renderer(self):
-        with patch("backend.mcp_sastra.designer.run_renderer") as render:
+        with patch("backend.app.services.presentation_designer.run_renderer") as render:
             with self.assertRaises(WorkspaceError): self.designer.design(self.source["id"],1,self.plan)
             self.service.approve_content(self.source["id"],1)
             with self.assertRaises(WorkspaceError): self.designer.design(self.source["id"],1,self.plan)
@@ -56,7 +56,7 @@ class DesignerTests(unittest.IsolatedAsyncioTestCase):
             def change(w): w["contents"][0]["version"]+=1
             self.service.mutate(change)
             return b"fixture-not-a-pptx",{}
-        with patch("backend.mcp_sastra.designer.run_renderer",side_effect=racing_render):
+        with patch("backend.app.services.presentation_designer.run_renderer",side_effect=racing_render):
             with self.assertRaises(WorkspaceError): self.designer.design(self.source["id"],2,self.plan)
         db=self.designer._connect()
         self.assertEqual(db.execute("SELECT count(*) FROM presentations").fetchone()[0],0)

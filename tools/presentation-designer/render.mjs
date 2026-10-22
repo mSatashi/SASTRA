@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import pptxgen from 'pptxgenjs';
 
 const [input, output] = process.argv.slice(2);
-if (!input || !output || process.env.K_SERVICE) throw new Error('Local designer requires input/output paths.');
+if (!input || !output) throw new Error('Designer requires server-owned input/output paths.');
 const plan = JSON.parse(await fs.readFile(input, 'utf8'));
 const assetDir = fileURLToPath(new URL('../../examples/mcp/', import.meta.url));
 const assets = { forest: 'forest-cover.png', plant: 'plant-illustration.png', classroom: 'classroom-activity.png' };

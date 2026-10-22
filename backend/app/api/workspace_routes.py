@@ -6,6 +6,7 @@ from ..services.workspace_service import workspace_service
 from ..services.gemini_service import gemini_service
 from ..services.llm_service import llm_service
 from ..services.presentation_service import PresentationInput, PresentationService
+from ..services.presentation_designer import DesignerService
 
 router = APIRouter(prefix="/api/v1", tags=["Teacher Workspace"])
 
@@ -17,7 +18,7 @@ def list_presentations(content_id: str):
 
 @router.post("/assessment-versions/{content_id}/presentations")
 def generate_presentation(content_id: str, req: PresentationInput):
-    return PresentationService(workspace_service).generate(content_id, req)
+    return DesignerService(workspace_service).generate(content_id, req)
 
 
 @router.get("/presentations/{presentation_id}/file")

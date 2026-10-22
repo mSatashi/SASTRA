@@ -24,6 +24,7 @@ backend/data/uploads/*
 backend/data/sastra.json
 backend/data/*.sqlite3*
 backend/data/mcp/
+backend/data/presentation-renders/
 
 # IDE & OS
 .vscode/

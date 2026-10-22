@@ -1,4 +1,4 @@
-# SASTRA custom presentation designer (local MCP)
+# SASTRA custom presentation designer
 
 The custom engine owns layout composition, typography, colors, artwork selection,
 content budgets and speaker notes. It uses PptxGenJS 4.0.1 as its file-writing
@@ -20,8 +20,13 @@ The bounded Gemini bridge discovers both tools and prefers the designer for
 visual lesson requests. The earlier `generate_presentation` tool remains for
 compatibility, with its original simpler layout.
 
-The new tools are local only. No production frontend, backend routes, web
-requirements, container, IAM, Cloud Run deployment, traffic or data is changed.
+The MCP entry point remains local only. The authenticated website's existing
+presentation POST route now uses the same engine from
+`backend/app/services/presentation_designer.py`. Gemini composes the typed plan
+from the approved source; the engine renders it and rechecks source version
+before storing it. Existing presentation metadata/download contracts remain
+compatible. The container includes Node and the renderer's pinned npm packages.
+No public MCP endpoint is exposed. PDF preview remains a local MCP capability.
 
 ## Design system
 
