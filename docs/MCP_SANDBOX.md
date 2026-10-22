@@ -3,6 +3,10 @@
 This branch implements an MCP server, an MCP client, and a bounded Gemini
 tool-calling bridge. It uses the official Python MCP SDK 2.3.0.
 
+For the separately installed third-party PowerPoint server and live Gemini
+lesson-to-PPT evaluation, see [Office MCP evaluation](OFFICE_MCP_EVALUATION.md).
+That optional lab is separate from the SASTRA server and the production app.
+
 ## Boundary with the production website
 
 The server runs only as a local stdio process. It is not imported or mounted
