@@ -40,6 +40,7 @@ def parser():
     download = sub.add_parser("download", help="Read a generated PPT through MCP resources")
     download.add_argument("presentation_id")
     download.add_argument("--out", type=Path, required=True)
+    download.add_argument("--format", choices=("pptx", "pdf"), default="pptx")
     agent = sub.add_parser("agent", help="Use Gemini to choose and call discovered MCP tools")
     agent.add_argument("prompt")
     return p
@@ -61,9 +62,10 @@ async def execute(args):
         if args.command == "download":
             if not args.presentation_id.isalnum() or len(args.presentation_id) > 100:
                 raise ValueError("Invalid presentation ID")
-            result = await client.read_resource(f"sastra://presentations/{args.presentation_id}")
+            resource = "previews" if args.format == "pdf" else "presentations"
+            result = await client.read_resource(f"sastra://{resource}/{args.presentation_id}")
             if len(result.contents) != 1 or not hasattr(result.contents[0], "blob"):
-                raise RuntimeError("Server did not return a binary PPTX resource")
+                raise RuntimeError("Server did not return a binary presentation resource")
             data = base64.b64decode(result.contents[0].blob, validate=True)
             with args.out.open("xb") as out:
                 out.write(data)

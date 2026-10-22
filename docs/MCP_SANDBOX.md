@@ -7,6 +7,10 @@ For the separately installed third-party PowerPoint server and live Gemini
 lesson-to-PPT evaluation, see [Office MCP evaluation](OFFICE_MCP_EVALUATION.md).
 That optional lab is separate from the SASTRA server and the production app.
 
+For SASTRA's own widescreen layouts, artwork and PDF preview tools, use the
+[custom presentation designer](PRESENTATION_DESIGNER.md). This is the preferred
+local presentation path; Office MCP remains an optional comparison lab.
+
 ## Boundary with the production website
 
 The server runs only as a local stdio process. It is not imported or mounted
@@ -58,6 +62,8 @@ boundary; this is not a remotely authenticated multi-teacher service.
 | `load_approved_grades` | Read only approved grades in the requested scope. |
 | `draft_report` | Produce a draft from approved evidence and source versions. |
 | `generate_presentation` | Produce draft PPTX from approved content at an expected version. |
+| `design_presentation` | Produce a designed editable 16:9 PPTX from an approved source and a typed editorial plan. |
+| `preview_presentation` | Render a generated PPTX to a PDF preview for visual inspection. |
 
 Every tool publishes input and output schemas and MCP tool annotations.
 Expected workflow failures become tool errors, not fabricated results.

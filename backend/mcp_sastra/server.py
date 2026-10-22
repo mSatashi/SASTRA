@@ -22,6 +22,7 @@ from backend.app.services.workspace_service import (
 )
 from backend.app.services.gemini_service import AIServiceError
 from backend.app.services.presentation_service import PresentationInput, PresentationService
+from .designer import DesignPlan, DesignerService
 
 Identifier = Annotated[str, Field(min_length=1, max_length=100)]
 Version = Annotated[int, Field(ge=1, strict=True)]
@@ -47,6 +48,7 @@ def create_server(service=None):
     if service.store is not None or service.seed_uri:
         raise ValueError("MCP requires an isolated SQLite workspace without cloud bootstrap.")
     presentations = PresentationService(service)
+    designer = DesignerService(service)
     server = MCPServer("SASTRA Sandbox", version="0.1.0", instructions=(
         "Local isolated SASTRA workspace. Discover assessments/students before using their IDs. "
         "Generate drafts only. Assessment approval, student confirmation, grade approval and report "
@@ -131,12 +133,41 @@ def create_server(service=None):
             expectedVersion=expected_version, slideCount=slide_count))
         return {**result, "resourceUri": f"sastra://presentations/{result['id']}"}
 
+    @server.tool(annotations=DRAFT, structured_output=True)
+    @workflow_errors
+    def design_presentation(assessment_id: Identifier, expected_version: Version,
+                            plan: DesignPlan) -> dict[str, Any]:
+        """Design an editable widescreen PPTX using SASTRA's own editorial layouts.
+
+        Prefer this tool for visually designed lessons. First load the approved
+        assessment and compose a concise plan faithful to its module/objective.
+        Available layouts: hook, concept, process, compare, activity, quiz,
+        reflection. Cover is automatic. Use bundled botanical visuals only for
+        plant lessons; use none for other topics. Never include assessment answer
+        keys or student identities. Titles/body must fit their layout budgets.
+        Returns a draft only; call preview_presentation and inspect its PDF.
+        """
+        result = designer.design(assessment_id, expected_version, plan)
+        return {**result, "resourceUri": f"sastra://presentations/{result['id']}"}
+
+    @server.tool(annotations=DRAFT, structured_output=True)
+    @workflow_errors
+    def preview_presentation(presentation_id: Identifier) -> dict[str, Any]:
+        """Render a generated PPTX to a PDF preview via local LibreOffice for visual review."""
+        return designer.preview(presentation_id)
+
     @server.resource("sastra://presentations/{presentation_id}",
                      mime_type="application/vnd.openxmlformats-officedocument.presentationml.presentation")
     @workflow_errors
     def presentation_file(presentation_id: str) -> bytes:
         """Read a generated PPTX from this isolated workspace; no arbitrary filesystem access."""
         return presentations.download(presentation_id)
+
+    @server.resource("sastra://previews/{presentation_id}", mime_type="application/pdf")
+    @workflow_errors
+    def preview_file(presentation_id: str) -> bytes:
+        """Read a PDF preview from this isolated workspace."""
+        return designer.preview_file(presentation_id)
 
     return server
 

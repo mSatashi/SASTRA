@@ -1,0 +1,9 @@
+{
+  "name": "sastra-presentation-designer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SASTRA's local MCP lesson presentation design engine",
+  "dependencies": {"pptxgenjs": "4.0.1"},
+  "engines": {"node": ">=22"}
+}

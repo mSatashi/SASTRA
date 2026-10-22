@@ -91,7 +91,7 @@ class ProtocolTests(unittest.IsolatedAsyncioTestCase):
     async def test_full_tool_workflow_and_binary_resource_preserve_human_gates(self):
         async with Client(self.server) as client:
             names = {t.name for t in (await client.list_tools()).tools}
-            self.assertEqual(len(names), 8)
+            self.assertEqual(len(names), 10)
             self.assertNotIn("approve_grade", names)
             self.assertNotIn("finalize_report", names)
             c = await self.generate(client)
@@ -232,7 +232,8 @@ class ProtocolTests(unittest.IsolatedAsyncioTestCase):
         declarations = requests[0]["tools"][0]["functionDeclarations"]
         self.assertEqual({d["name"] for d in declarations}, {
             "list_students", "list_assessments", "load_assessment", "generate_assessment",
-            "load_approved_grades", "draft_report", "generate_presentation"})
+            "load_approved_grades", "draft_report", "generate_presentation",
+            "design_presentation", "preview_presentation"})
         response_part = requests[1]["contents"][-1]["parts"][0]["functionResponse"]
         self.assertEqual(response_part["id"], "sdk-call")
         self.assertEqual(response_part["response"]["result"]["assessments"], [])
